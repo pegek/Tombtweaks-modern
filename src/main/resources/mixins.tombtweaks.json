@@ -7,7 +7,9 @@
   "mixins": [
     "MixinBlockEntityPlayerGrave",
     "MixinItemBook",
-    "MixinBlockDecorativeGrave"
+    "MixinBlockDecorativeGrave",
+    "MixinDeathHandlerKeys",
+    "MixinTombstoneEnchantment"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,4 +1,4 @@
-# Weryfikacja w grze — tombtweaks 0.1.0
+# Weryfikacja w grze — tombtweaks 0.2.0
 
 Rób to na **zreobfuskowanym jarze z `build/libs/` wrzuconym do prawdziwej instancji** (Forge 47 + Tombstone 9.1.4), nie w `./gradlew runClient`. Dev używa nazw oficjalnych i ukrywa dokładnie ten błąd (brak refmapy), który jest dla tego moda najgroźniejszy.
 
@@ -6,9 +6,9 @@ Zaznaczaj wynik obok każdego punktu. Wszystko, co wypadnie inaczej niż „Ocze
 
 ## 0. Start
 
-- [ ] Gra wstaje, w modliście `tombtweaks` z wersją `0.1.0`.
-- [ ] W logu linia `[TombTweaks] 0.1.0 loading`.
-- [ ] W logu **trzy** linie `Mixing … from mixins.tombtweaks.json into …` — dla `BlockEntityPlayerGrave`, `ItemBook` i `BlockDecorativeGrave`. Mixiny ładują się leniwie: linia pojawia się dopiero przy pierwszym załadowaniu klasy-celu (np. po postawieniu grobu / użyciu księgi), więc jej brak przed tym momentem nie jest błędem.
+- [ ] Gra wstaje, w modliście `tombtweaks` z wersją `0.2.0`.
+- [ ] W logu linia `[TombTweaks] 0.2.0 loading`.
+- [ ] W logu **pięć** linii `Mixing … from mixins.tombtweaks.json into …` — dla `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave`, `DeathHandler` i `TombstoneEnchantment`. Mixiny ładują się leniwie: linia pojawia się dopiero przy pierwszym załadowaniu klasy-celu (np. po postawieniu grobu / użyciu księgi), więc jej brak przed tym momentem nie jest błędem.
 - [ ] **Brak** w logu: `InvalidInjectionException`, `could not find any targets`, `Reference map 'tombtweaks.refmap.json' … could not be read`.
 - [ ] Powstał `config/tombtweaks-common.toml` z trzema tabelami `[restore]`, `[decay]`, `[cooldown]`; `decay.enabled = false`, cztery listy ochrony puste, `cooldown.books` z dwoma wpisami po 6 min.
 
@@ -41,6 +41,21 @@ Ustaw `decay.enabled = true`, `startTicks = 100`, `intervalTicks = 40`.
 - [ ] **Stos złożony z jednej księgi** — cooldown też startuje.
 - [ ] Wyjście do menu i powrót — cooldown trwa dalej. Śmierć — cooldown trwa dalej.
 - [ ] `books = ["tombstone:book_of_disenchantment;0"]` — cooldown znika od razu, bez restartu.
+
+## 3a. Klucze do grobu (0.2.0)
+
+- [ ] Domyślnie (`graveKeys.survivesDeath = true`): zginij z kluczem do starego grobu w ekwipunku — po respawnie klucz dalej jest przy Tobie (zachowanie Tombstone'a).
+- [ ] `survivesDeath = false`, powtórz. **Oczekiwane:** stary klucz leży w **nowym** grobie, a klucz do nowego grobu dostajesz jak zawsze.
+- [ ] To samo z kluczem, na który wcześniej nałożono Soulbound (np. przy `true`). **Oczekiwane:** przy `false` też trafia do grobu.
+- [ ] Kowadło: klucz + księga z Soulboundem przy `false` — brak wyniku. Przy `true` — działa jak w Tombstonie.
+- [ ] W logu linia `Mixing MixinDeathHandlerKeys … into ovh.corail.tombstone.helper.DeathHandler` i `Mixing MixinTombstoneEnchantment … into ovh.corail.tombstone.enchantment.TombstoneEnchantment`.
+
+## 3b. Wyłączone enchanty Tombstone'a (0.2.0)
+
+- [ ] W configu Tombstone'a wyłącz Soulbound (`enableEnchantmentSoulbound = false`).
+- [ ] Wygeneruj dużo lootu z księgami `enchant_randomly` (np. `/loot spawn ~ ~ ~ loot minecraft:chests/stronghold_library` kilkadziesiąt razy). **Oczekiwane:** żadna księga z Soulboundem.
+- [ ] Nowi bibliotekarze (reroll handlu kilkadziesiąt razy). **Oczekiwane:** żadnej księgi z Soulboundem w ofercie.
+- [ ] Kontrola: włącz Soulbound z powrotem — księgi z nim znów się pojawiają (poprawka nie wycina włączonych enchantów).
 
 ## 4. Serwer dedykowany
 

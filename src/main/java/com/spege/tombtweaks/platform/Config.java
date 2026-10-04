@@ -34,6 +34,8 @@ public final class Config {
     public final ForgeConfigSpec.BooleanValue cooldownEnabled;
     public final ForgeConfigSpec.ConfigValue<List<? extends String>> cooldownBooks;
 
+    public final ForgeConfigSpec.BooleanValue graveKeysSurviveDeath;
+
     private Config(ForgeConfigSpec.Builder builder) {
         builder.comment("Items return to the slots they came from when a grave is recovered.")
                .push("restore");
@@ -99,6 +101,22 @@ public final class Config {
                 .defineList("books", Arrays.asList(
                         "tombstone:book_of_disenchantment;6",
                         "tombstone:book_of_magic_impregnation;6"), o -> o instanceof String);
+        builder.pop();
+
+        builder.comment("Tombstone's grave keys.")
+               .push("graveKeys");
+        graveKeysSurviveDeath = builder
+                .comment("Whether the grave keys you are carrying stay with you when you die.",
+                         "Tombstone treats every grave key as soulbound no matter what - with or without",
+                         "the Soulbound enchantment, and even when Soulbound is disabled in Tombstone's",
+                         "own config.",
+                         "true  = Tombstone's behaviour: carried keys survive every death.",
+                         "false = keys are immune to Soulbound: carried keys go into the new grave like any",
+                         "        other item (even with the enchantment on them), and an anvil refuses to",
+                         "        put Soulbound on a key. The key to the grave you just made is still handed",
+                         "        to you as usual.",
+                         "Read live - no restart needed.")
+                .define("survivesDeath", true);
         builder.pop();
     }
 

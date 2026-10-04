@@ -1,12 +1,14 @@
 # TombTweaks (Minecraft 1.20.1)
 
-Trzy tweaki do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) 9.1.x, każdy niezależnie wyłączalny.
+Tweaki i poprawki do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) 9.1.x.
 
 | Feature | Co robi | Domyślnie |
 |---|---|---|
 | `[restore]` | Odzyskany grób oddaje przedmioty **na te same sloty**, z których zginęły — łącznie z pancerzem i offhandem | włączone |
 | `[decay]` | Nieodwiedzony grób powoli gubi zawartość na ziemię; cztery listy ochrony wyjmują wybrane przedmioty spod tego | **wyłączone** |
 | `[cooldown]` | Magiczne księgi Tombstone'a dostają cooldown, konfigurowalny per księga | włączone (2 księgi × 6 min) |
+| `[graveKeys]` | `survivesDeath = false`: klucze do grobu przestają być soulboundowe — noszone klucze trafiają do nowego grobu, a Soulbounda nie da się na klucz nałożyć | `true` (zachowanie Tombstone'a) |
+| *(zawsze)* | Enchanty Tombstone'a **wyłączone w jego configu** naprawdę znikają ze skrzyń i od bibliotekarzy | — |
 
 Config: `config/tombtweaks-common.toml`. Wszystkie wartości są czytane na bieżąco — bez restartu.
 
@@ -20,6 +22,10 @@ Wymagania: Minecraft 1.20.1, Forge 47+, Corail Tombstone **9.1.4 – 9.1.x** (za
 
 **Cooldown.** Blokada siedzi na `ItemBook.canEnchant`, start cooldownu — na jedynym w Tombstonie wywołaniu `setEnchant`, tylko przy sukcesie.
 
+**Klucze i Soulbound.** Tombstone traktuje każdy klucz do grobu jako soulbound bezwarunkowo (flaga `forceSoulbound`), niezależnie od enchantu i od przełącznika Soulbounda w swoim configu. Przy `survivesDeath = false` decyzja przy śmierci (`DeathHandler.storeSoulboundsOnBody`) odpowiada dla klucza „nie", więc ląduje on w nowym grobie. Klucz do grobu, który właśnie powstaje, Tombstone wydaje osobno — dostajesz go jak zawsze.
+
+**Wyłączone enchanty.** Tombstone uzależnia od swojego configu stół do zaklinania, kowadło i księgi, ale nie `isDiscoverable()` (po nim filtruje vanillowy `enchant_randomly` w skrzyniach) ani `isTradeable()` (bibliotekarze). Mod dodaje oba nadpisania: `isEnabled() && super`. Dla enchantów włączonych nic się nie zmienia.
+
 ## Znane ograniczenia
 
 - **Curios** nie są obsługiwane przez restore (przestrzeń slotów 200+ zarezerwowana). Tombstone ma własne `curioAutoEquip`.
@@ -28,6 +34,8 @@ Wymagania: Minecraft 1.20.1, Forge 47+, Corail Tombstone **9.1.4 – 9.1.x** (za
 - **Scalone groby.** Druga śmierć w promieniu 20 bloków od nieodebranego grobu dokłada przedmioty do niego; rozsadzane są tylko przedmioty z ostatniej śmierci, starsze idą ścieżką standardową. Scalenie zeruje też licznik decay.
 - **Historia decay gracza offline** trafia tylko do logu serwera (DEBUG).
 - **Dwa komunikaty przy zablokowanej księdze:** nasz (z liczbą sekund, na pasku akcji) i własny Tombstone'a „not allowed" w czacie.
+- **Księga Soulbounda** (`book_of_soulbound`) użyta na kluczu przy `survivesDeath = false` nadal się zużyje, choć nic nie da — blokowana jest tylko droga przez kowadło.
+- **Wyłączone enchanty** w lootach innych modów, które budują własną pulę enchantów z pominięciem vanillowych funkcji, mogą nadal przeciekać — zamknięte są ścieżki vanilli.
 
 ## Budowanie
 

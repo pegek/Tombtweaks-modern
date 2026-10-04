@@ -347,3 +347,20 @@ Kolejność od najtańszej do najdroższej, każdy krok odcina konkretne ryzyko:
 - **Refmapy na 1.20.1 są włączone, a procesor adnotacji jest zadeklarowany jawnie.** Zasada `-proc:none` z `modDev/CLAUDE.md` nie obowiązuje w tym repo. Po każdej zmianie mixina: sprawdzić wpis w `tombtweaks.refmap.json` w zbudowanym jarze.
 - **Jar Tombstone'a nie trafia do repo.** Licencja „All rights reserved"; źródłem jest CurseMaven.
 - **Weryfikacja w grze na zreobfuskowanym jarze w prawdziwej instancji, nie w `runClient`.** Dev używa nazw oficjalnych i ukrywa dokładnie tę klasę błędów (brak refmapy), która jest dla tego moda najgroźniejsza.
+
+---
+
+## 11. Dodatek 0.2.0 (2026-10-04) — klucze do grobu i wyłączone enchanty
+
+Prośba gracza: „klucz odporny na Soulbound" i „wyłączanie enchantów ma działać — dalej są w skrzyniach". Ustalenia z bajtkodu, identyczne co do mechanizmu w Tombstone 4.8.0 (1.12.2), 7.0.0 (1.16.5) i 9.1.4 (1.20.1):
+
+- **Klucz jest soulboundowy na sztywno.** 1.12.2/1.16.5: `EntityHelper.hasSoulbound` zwraca `true` dla `ModItems.grave_key`; 1.20.1: klucz ma `forceSoulbound`, przez co `ItemGeneric.getEnchantmentLevel(soulbound)` = 1. Żadna ścieżka nie patrzy na `enableEnchantmentSoulbound`. Decyzja przy śmierci zapada w jednym wywołaniu w `DeathHandler.storeSoulboundsOnBody`.
+- **Tombstone respektuje swój config** na stole (`canApplyAtEnchantingTable`), w kowadle (`canEnchant`), na księgach (`isAllowedOnBooks`) i w swoich tabelach lootu (`PreciseEnchantFunction` sprawdza `isEnabled()`). **Nie** nadpisuje `isDiscoverable()` (po nim filtruje vanillowy `EnchantRandomlyFunction` — dla książki pomija `canEnchant`) ani `isTradeable()` (`VillagerTrades.EnchantBookForEmeralds`). To jest przeciek.
+
+Implementacja w 0.2.0:
+- `[graveKeys] survivesDeath` (domyślnie `true`, czytane na bieżąco). Na `false`: `@Redirect` `Helper.isSoulbound` w `storeSoulboundsOnBody` zwraca dla klucza `false`; `@Inject` HEAD `TombstoneEnchantment.canEnchant` odmawia Soulbounda na kluczu. Logika w `feature/gravekey/GraveKeyPolicy`.
+- `MixinTombstoneEnchantment` **dodaje** `isDiscoverable()` / `isTradeable()` = `isEnabled() && super`. Klasa mixina dziedziczy po `Enchantment`, więc reobf zamienia nazwy na `m_6592_` / `m_6594_` — sprawdzone `javap` na zbudowanym jarze. Żadna z 12 podklas nie nadpisuje tych metod ani `canEnchant`. Bez opcji: to naprawa błędu, a dla włączonych enchantów zachowanie się nie zmienia.
+
+Świadomie poza zakresem: Księga Soulbounda (`ItemBookOfSoulbound`) na kluczu przy `false` nadal się zużywa; loot innych modów budujących własną pulę enchantów.
+
+Na 1.12.2 to samo dla klucza trafiło do `modDev/tombtweaks` 1.10.0 (gałąź `feat/tombtweaks-grave-key-soulbound`). Przeciek do skrzyń na 1.12.2 zamyka istniejący `enchanteraser` — bez nowego kodu. Na 1.16.5 tombtweaks jeszcze nie istnieje; przy porcie (etap 4) obie poprawki przenoszą się 1:1, bo mechanizm w Tombstone 7.0.0 jest ten sam co w 4.8.0.
