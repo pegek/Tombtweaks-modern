@@ -1,0 +1,46 @@
+package com.spege.tombtweaks.mixin;
+
+import com.spege.tombtweaks.feature.gravekey.GraveKeyPolicy;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import ovh.corail.tombstone.helper.DeathHandler;
+import ovh.corail.tombstone.helper.Helper;
+
+/**
+ * Grave keys survive death = false: a carried key loses its soulbound status on death.
+ *
+ * <p>{@code storeSoulboundsOnBody} walks over the drops and every one for which
+ * {@code Helper.isSoulbound} answers true it takes out of them - keys into {@code tb_key_stacks},
+ * the rest into {@code tb_soulbound_stacks} - so that they come back after respawn. For a key
+ * the answer is always true. An answer of false leaves the key in the drops, so it ends up in
+ * the new grave.
+ *
+ * <p>The only other call of {@code isSoulbound} in Tombstone 9.5.6 is in
+ * {@code ItemBookOfSoulbound.setEnchant}, so this redirect is the whole decision at death and
+ * touches nothing else. The key to the grave being created right now is issued by Tombstone
+ * separately, in {@code handleLoot}.
+ *
+ * <p>On 1.21.1 {@code isSoulbound} takes the {@code Level} as well (the enchantment is looked up
+ * through the level's registries). {@code Helper} is the exact owner of the static call.
+ * remap = false everywhere: the target and the call are Tombstone members, and this build has
+ * no refmap.
+ */
+@Mixin(value = DeathHandler.class, remap = false)
+public class MixinDeathHandlerKeys {
+
+    @Redirect(
+            method = "storeSoulboundsOnBody",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lovh/corail/tombstone/helper/Helper;isSoulbound("
+                           + "Lnet/minecraft/world/item/ItemStack;"
+                           + "Lnet/minecraft/world/level/Level;)Z",
+                    remap = false),
+            remap = false)
+    private boolean tombtweaks$graveKeySoulbound(ItemStack stack, Level level) {
+        return GraveKeyPolicy.keepOnDeath(stack, Helper.isSoulbound(stack, level));
+    }
+}
