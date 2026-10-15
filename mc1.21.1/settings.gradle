@@ -1,0 +1,13 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { name = 'NeoForged'; url = 'https://maven.neoforged.net/releases' }
+    }
+}
+
+plugins {
+    // Lets Gradle download the JDK 21 compile toolchain on its own.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
+rootProject.name = 'tombtweaks'

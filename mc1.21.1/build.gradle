@@ -1,0 +1,92 @@
+plugins {
+    // 2.0.148 = newest 2.0.x on the Gradle Plugin Portal (2026-10-16).
+    // MDG refuses to apply unless the Gradle daemon itself runs on Java 17+, while this
+    // machine's default JAVA_HOME is JDK 8 - hence gradle/gradle-daemon-jvm.properties.
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = '0.3.0'
+group   = 'com.spege.tombtweaks'
+base { archivesName = 'tombtweaks-1.21.1' }
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+// The shared core (Java 8, no MC types) lives in ../core and is compiled into every
+// MC-version build - the decision logic exists once and its tests run on every JVM.
+sourceSets {
+    main { java { srcDir '../core/src/main/java' } }
+    test { java { srcDir '../core/src/test/java' } }
+}
+
+neoForge {
+    // 21.1.262 = newest 21.1.x on maven.neoforged.net (2026-10-16).
+    version = '21.1.262'
+
+    runs {
+        client { client() }
+        server { server() }
+    }
+
+    mods {
+        tombtweaks { sourceSet sourceSets.main }
+    }
+}
+
+repositories {
+    mavenCentral()
+    // Tombstone is "All rights reserved", so its jar must NEVER be committed.
+    // CurseMaven serves exactly the same file as CurseForge.
+    // 243707 = corail-tombstone, 8842741 = file "9.5.6 [NeoForge] 1.21.1".
+    maven { url = 'https://www.cursemaven.com' }
+}
+
+dependencies {
+    // NeoForge 1.21.1 uses Mojang's official names at runtime: no deobf, no refmap,
+    // no Mixin annotation processor.
+    implementation 'curse.maven:corail-tombstone-243707:8842741'
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging { events 'passed', 'skipped', 'failed' }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// core is also compiled by the 1.16.5 build, i.e. on Java 8. The Java 21 toolchain would
+// silently accept var, List.of or a record - this task compiles core alone with
+// --release 8 and fails `check` as soon as core stops being Java 8.
+tasks.register('compileCoreJava8', JavaCompile) {
+    source = fileTree('../core/src/main/java')
+    classpath = files()
+    // A hand-registered task does not inherit the project toolchain (Gradle may run on a JDK
+    // that does not know --release), so the compiler is set explicitly.
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+    destinationDirectory = layout.buildDirectory.dir('core-java8')
+    options.release = 8
+    options.encoding = 'UTF-8'
+}
+tasks.named('check') { dependsOn 'compileCoreJava8' }
+
+// FML fills ${file.jarVersion} in neoforge.mods.toml at load time from
+// Implementation-Version below - without it the mod reports no real version.
+jar {
+    manifest {
+        attributes([
+            'Specification-Title'   : 'TombTweaks',
+            'Specification-Vendor'  : 'spege',
+            'Specification-Version' : "${version}",
+            'Implementation-Title'  : project.name,
+            'Implementation-Version': "${version}",
+            'Implementation-Vendor' : 'spege'
+        ])
+    }
+}

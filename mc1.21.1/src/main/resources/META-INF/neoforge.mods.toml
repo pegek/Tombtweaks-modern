@@ -1,0 +1,43 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+issueTrackerURL="https://github.com/pegek/Tombtweaks-modern/issues"
+
+[[mods]]
+modId="tombtweaks"
+# Filled in by FML at load time from the jar manifest's Implementation-Version (see build.gradle).
+version="${file.jarVersion}"
+displayName="TombTweaks"
+authors="spege"
+description='''
+Tweaks for Corail Tombstone: items return to the slots they came from, unvisited graves slowly decay, and the magic books get a cooldown.
+'''
+
+[[dependencies.tombtweaks]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.tombtweaks]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.1,1.21.2)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.tombtweaks]]
+    modId="tombstone"
+    type="required"
+    # Pinned to the version verified with javap (9.5.6). The mixins are required +
+    # defaultRequire 1, so a version that changes serverTick / canEnchant / the calls in
+    # useItemOn or storeSoulboundsOnBody would crash the game at class load - better for
+    # NeoForge to refuse to start with a readable dependency message.
+    versionRange="[9.5.6,9.6)"
+    ordering="AFTER"
+    side="BOTH"
+
+# Unlike FML 47, NeoForge reads the mixin configs from this file.
+[[mixins]]
+    config="mixins.tombtweaks.json"
