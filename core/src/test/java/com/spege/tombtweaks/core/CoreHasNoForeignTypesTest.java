@@ -21,8 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  */
 class CoreHasNoForeignTypesTest {
 
+    // core kompiluje sie w buildach 1.16.5 (Forge), 1.20.1 (Forge) i 1.21.1 (NeoForge).
     private static final String[] FORBIDDEN = {
-        "net/minecraft", "net/minecraftforge", "ovh/corail"
+        "net/minecraft", "net/minecraftforge", "net/neoforged", "ovh/corail"
     };
 
     /** Zakazane nazwy typow, ktore constant pool danej klasy zawiera jako zwykly tekst. */

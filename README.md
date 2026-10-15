@@ -1,6 +1,6 @@
-# TombTweaks (Minecraft 1.20.1)
+# TombTweaks (modern)
 
-Tweaki i poprawki do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) 9.1.x.
+Tweaki i poprawki do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) dla Minecrafta **1.16.5, 1.20.1 i 1.21.1**. Wersja dla 1.12.2 to osobny projekt.
 
 | Feature | Co robi | Domyślnie |
 |---|---|---|
@@ -12,7 +12,17 @@ Tweaki i poprawki do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-
 
 Config: `config/tombtweaks-common.toml`. Wszystkie wartości są czytane na bieżąco — bez restartu.
 
-Wymagania: Minecraft 1.20.1, Forge 47+, Corail Tombstone **9.1.4 – 9.1.x** (zakres jest celowo wąski: mixiny są zweryfikowane tylko na 9.1.4, a niezgodna wersja wolałaby nie wystartować, niż wywalić grę przy ładowaniu klasy).
+## Wersje
+
+| Minecraft | Loader | Tombstone | Stan |
+|---|---|---|---|
+| 1.20.1 | Forge 47+ | 9.1.4 – 9.1.x | ✅ wszystkie funkcje (0.2.0) |
+| 1.21.1 | NeoForge 21.1 | 9.5.x | w przygotowaniu — wyłączanie enchantów **nie dotyczy** (patrz niżej) |
+| 1.16.5 | Forge 36 | 7.0.0 | w przygotowaniu |
+
+Zakres wersji Tombstone'a jest celowo wąski: mixiny są zweryfikowane na konkretnych wydaniach, a niezgodna wersja wolałaby nie wystartować, niż wywalić grę przy ładowaniu klasy.
+
+**1.21.1 i wyłączone enchanty.** Od 1.21 enchanty Tombstone'a są definiowane danymi, Tombstone 9.5 nie ma przełącznika, który je wyłącza, i dopisuje wszystkie do vanillowych tagów lootu i handlu. Żeby usunąć enchant z lootu i handlu, użyj datapacka nadpisującego tagi `minecraft:on_random_loot` / `minecraft:tradeable` (albo `tombstone:enchantments`).
 
 ## Jak to działa
 
@@ -39,23 +49,24 @@ Wymagania: Minecraft 1.20.1, Forge 47+, Corail Tombstone **9.1.4 – 9.1.x** (za
 
 ## Budowanie
 
+Repo zawiera trzy niezależne buildy — każdy budujesz ze swojego katalogu:
+
 ```bash
-./gradlew build      # jar w build/libs/
-./gradlew check      # 62 testy + straże czystości i Javy 8 dla pakietu core
+cd mc1.20.1 && ./gradlew check build   # testy + straże, jar w mc1.20.1/build/libs/
 ```
 
-JDK 17 Gradle pobiera sam przez toolchain. Tombstone pochodzi z CurseMaven — jego jar celowo nie leży w repo (licencja „All rights reserved").
+JDK (8 / 17 / 21) Gradle pobiera sam przez toolchain. Tombstone pochodzi z CurseMaven — jego jar celowo nie leży w repo (licencja „All rights reserved").
 
-**Po każdej zmianie mixina** sprawdź, że `tombtweaks.refmap.json` w zbudowanym jarze ma wpis dla `MixinBlockDecorativeGrave` → `m_6227_`. Bez refmapy build jest zielony, a gra wywala się dopiero w prawdziwej instancji — `runClient` tego nie pokaże.
+**Po każdej zmianie mixina w buildzie Forge** sprawdź, że `tombtweaks.refmap.json` w zbudowanym jarze ma wpisy dla celów będących metodami Minecrafta (1.20.1: `use` → `m_6227_`, `canEnchant` → `m_6081_`). Bez refmapy build jest zielony, a gra wywala się dopiero w prawdziwej instancji — `runClient` tego nie pokaże.
 
 ## Architektura
 
-| Pakiet | Zawartość | Testy |
+| Katalog / pakiet | Zawartość | Testy |
 |---|---|---|
-| `core` | cała logika decyzyjna; zero typów Minecrafta i Tombstone'a; **składnia Javy 8**, żeby port na 1.16.5 był kopiuj-wklej | JUnit 5 |
-| `platform` | config, adaptery `ItemStack` → `core`, kodek NBT | round-trip kodeka |
-| `feature` | handlery eventów i trzy mixiny | w grze — patrz `docs/in-game-checklist.md` |
+| `core/` | cała logika decyzyjna, **wspólna dla wszystkich wersji**; zero typów Minecrafta, loadera i Tombstone'a; składnia Javy 8 | JUnit 5, w każdym buildzie |
+| `mcX/…/platform` | config, adaptery `ItemStack` → `core`, kodek NBT | round-trip kodeka |
+| `mcX/…/feature`, `mixin` | handlery eventów i mixiny | w grze — `docs/checklists/in-game-<mc>.md` |
 
 Obie zasady `core` są pilnowane mechanicznie: `CoreHasNoForeignTypesTest` skanuje skompilowane klasy, `compileCoreJava8` kompiluje `core` z `--release 8`.
 
-Pełne uzasadnienie decyzji, z miejscami, gdzie implementacja odeszła od projektu: `docs/specs/2026-08-14-tombtweaks-1201-port-design.md`.
+Uzasadnienie decyzji: `docs/specs/` — układ wielowersyjny w `2026-10-16-multiversion-design.md`, funkcje w `2026-08-14-tombtweaks-1201-port-design.md`.

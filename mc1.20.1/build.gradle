@@ -14,6 +14,13 @@ java {
     toolchain { languageVersion = JavaLanguageVersion.of(17) }
 }
 
+// Wspolny core (Java 8, zero typow MC) zyje w ../core i kompiluje sie w kazdym buildzie
+// wersji MC - logika decyzyjna istnieje raz, a jej testy leca na kazdej JVM.
+sourceSets {
+    main { java { srcDir '../core/src/main/java' } }
+    test { java { srcDir '../core/src/test/java' } }
+}
+
 minecraft {
     mappings channel: 'official', version: '1.20.1'
     copyIdeResources = true
@@ -49,11 +56,12 @@ dependencies {
 
     // Tombstone: deobf jest konieczny, bo referencje do MC w jego bajtkodzie sa SRG-owe.
     // Koordynat: curse.maven:<slug>-<projectId>:<fileId>. 243707 = corail-tombstone,
-    // 8606942 = plik "Corail Tombstone 9.1.4 for 1.20.1". Zweryfikowane sha256 -
-    // artefakt z CurseMaven jest bajt w bajt tym samym plikiem co jar z CurseForge.
+    // 9070062 = plik "Corail Tombstone 9.1.5 for 1.20.1" (wczesniej 8606942 = 9.1.4).
+    // Przed zmiana pliku: porownaj javap -p klas-celow mixinow miedzy wersjami i policz
+    // wywolania w metodach z redirectami - na 9.1.4 -> 9.1.5 wszystko identyczne.
     // UWAGA: fg.deobf(files(...)) NIE dziala na ForgeGradle 6 - cicho podsuwa
     // zaobfuskowany jar (to jest skladnia FG3).
-    implementation fg.deobf('curse.maven:corail-tombstone-243707:8606942')
+    implementation fg.deobf('curse.maven:corail-tombstone-243707:9070062')
 
     // Procesor adnotacji Mixin - MixinGradle 0.7 NIE dodaje go sam. Bez tej linii build jest
     // cichy i zielony, ale jar wychodzi bez refmapy, a redirect w MixinBlockDecorativeGrave
@@ -72,11 +80,11 @@ test {
     testLogging { events 'passed', 'skipped', 'failed' }
 }
 
-// core ma sie przenosic kopiuj-wklej do portu na 1.16.5, czyli Java 8. Toolchain 17 przepusci
+// core kompiluje sie tez w buildzie 1.16.5, czyli na Javie 8. Toolchain 17 przepusci
 // var, List.of czy rekord bez slowa - to zadanie kompiluje sam core z --release 8
 // i wywala `check`, gdy core przestanie byc Java 8.
 tasks.register('compileCoreJava8', JavaCompile) {
-    source = fileTree('src/main/java') { include 'com/spege/tombtweaks/core/**' }
+    source = fileTree('../core/src/main/java')
     classpath = files()
     // Zadanie wlasne nie dziedziczy toolchaina projektu (Gradle chodzi na JDK 8, ktory nie zna
     // --release), wiec kompilator wskazujemy jawnie.
