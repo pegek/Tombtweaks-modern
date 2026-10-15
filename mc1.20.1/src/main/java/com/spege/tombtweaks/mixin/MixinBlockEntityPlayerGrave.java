@@ -11,10 +11,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ovh.corail.tombstone.block.entity.BlockEntityPlayerGrave;
 
 /**
- * Wpina rozklad we wlasny ticker grobu - jeden wywolanie na grob na tick, bez skanowania
- * wszystkich block entity jak na 1.12.2.
+ * Hooks decay into the grave's own ticker - one call per grave per tick, with no scanning of
+ * all block entities as on 1.12.2.
  *
- * <p>remap = false, bo serverTick to metoda Tombstone'a, ktorej nazwa nie jest obfuskowana.
+ * <p>remap = false, because serverTick is a Tombstone method whose name is not obfuscated.
  */
 @Mixin(BlockEntityPlayerGrave.class)
 public class MixinBlockEntityPlayerGrave {

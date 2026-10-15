@@ -1,16 +1,16 @@
 package com.spege.tombtweaks.core;
 
 /**
- * Tozsamosc stacka: tyle, zeby go rozpoznac przy powrocie z grobu, i ani grama wiecej.
+ * Stack identity: just enough to recognise it on its way back from the grave, and not a gram more.
  *
- * <p>Na 1.12.2 kluczem bylo (nazwa, metadane, hash NBT). Na 1.20.1 metadanych nie ma,
- * a wytrzymalosc siedzi w NBT - stad para (nazwa, hash NBT) i stad tez to, ze dopasowanie
- * musi miec stopien awaryjny: serializacja stacka do grobu i z powrotem potrafi
- * znormalizowac tag, a wtedy hash sie zmienia. Patrz {@link SlotPlan}.
+ * <p>On 1.12.2 the key was (name, metadata, NBT hash). On 1.20.1 there is no metadata,
+ * and durability lives in NBT - hence the (name, NBT hash) pair, and hence also the fact that
+ * matching must have a fallback tier: serialising a stack into the grave and back can
+ * normalise the tag, and then the hash changes. See {@link SlotPlan}.
  *
- * <p>{@code nbtHash} musi byc stabilny miedzy restartami JVM, bo snapshoty sa zapisywane
- * miedzy sesjami. {@code CompoundTag.hashCode()} jest oparty na zawartosci i stabilny;
- * hash tozsamosciowy (identity) nie bylby.
+ * <p>{@code nbtHash} must be stable across JVM restarts, because snapshots are persisted
+ * between sessions. {@code CompoundTag.hashCode()} is content-based and stable;
+ * an identity hash would not be.
  */
 public final class ItemKey {
 

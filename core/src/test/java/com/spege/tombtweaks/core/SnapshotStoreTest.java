@@ -17,7 +17,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void wiazePoNajblizszymCzasie() {
+    void bindsByNearestTime() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(50_000L));
@@ -29,7 +29,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void zuzywaSnapshotWiecDrugiGrobDostajeSwoj() {
+    void consumesSnapshotSoSecondGraveGetsItsOwn() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(50_000L));
@@ -40,7 +40,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void pozaTolerancjaToBrakDopasowania() {
+    void outsideToleranceMeansNoMatch() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
 
@@ -48,7 +48,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void tolerancjaDzialaWObieStrony() {
+    void toleranceWorksBothWays() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(10_000L));
 
@@ -56,7 +56,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void przycinaPoLiczbie() {
+    void prunesByCount() {
         SnapshotStore store = new SnapshotStore();
         for (int i = 1; i <= 6; i++) {
             store.add(at(i * 1_000L));
@@ -65,13 +65,13 @@ class SnapshotStoreTest {
         store.prune(100_000L, 3, Long.MAX_VALUE);
 
         assertEquals(3, store.all().size());
-        // zostaja najmlodsze
+        // the youngest remain
         assertEquals(4_000L, store.all().get(0).capturedAt());
         assertEquals(6_000L, store.all().get(2).capturedAt());
     }
 
     @Test
-    void przycinaPoWieku() {
+    void prunesByAge() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(90_000L));
@@ -83,7 +83,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void ujemnyLimitCzysciWszystkoBezWyjatku() {
+    void negativeLimitClearsEverythingWithoutThrowing() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(2_000L));
@@ -94,7 +94,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void przepelnienieOdlegolosciNieWiazeSnapshotu() {
+    void distanceOverflowDoesNotBindSnapshot() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(Long.MAX_VALUE));
 
@@ -102,7 +102,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void remisWygrywaWczesniejDodany() {
+    void tieGoesToEarlierAdded() {
         SnapshotStore store = new SnapshotStore();
         SlotSnapshot first = new SlotSnapshot(1_000L);
         first.add(0, new ItemKey("minecraft:stone", 0), 1);
@@ -118,7 +118,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void pustyMagazynNieWybucha() {
+    void emptyStoreDoesNotBlowUp() {
         SnapshotStore store = new SnapshotStore();
         store.prune(100_000L, 3, 1_000L);
         assertNull(store.claimNearest(0L, TOLERANCE));

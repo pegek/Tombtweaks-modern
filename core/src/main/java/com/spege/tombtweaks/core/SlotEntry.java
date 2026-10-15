@@ -1,6 +1,6 @@
 package com.spege.tombtweaks.core;
 
-/** Jedno zapamietane miejsce: co gdzie siedzialo w chwili smierci. */
+/** One remembered seat: what sat where at the moment of death. */
 public final class SlotEntry {
 
     private final int slot;
@@ -22,8 +22,8 @@ public final class SlotEntry {
     }
 
     /**
-     * Ilosc w chwili smierci. Zapisywana dla diagnostyki, NIGDY nie jest kryterium dopasowania:
-     * percentLossOnDeath zmniejsza stacki wewnatrz grobu, zanim ktokolwiek je zobaczy.
+     * Quantity at the moment of death. Stored for diagnostics, NEVER a matching criterion:
+     * percentLossOnDeath shrinks stacks inside the grave before anyone sees them.
      */
     public int count() {
         return count;

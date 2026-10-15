@@ -6,13 +6,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Czego rozkladajacy sie grob nie ma prawa zjesc.
+ * What a decaying grave is not allowed to eat.
  *
- * <p>Cztery niezalezne reguly; stack jest chroniony, gdy pasuje KTORAKOLWIEK.
+ * <p>Four independent rules; a stack is protected when ANY of them matches.
  *
- * <p>Zasada, ktorej nie wolno zlamac: <b>pusta lista nie chroni niczego</b>. Odwrotna
- * interpretacja zamienilaby domyslna konfiguracje w grob, ktory nigdy nic nie traci,
- * czyli w feature wygladajacy na dzialajacy i nierobiacy nic.
+ * <p>A rule that must not be broken: <b>an empty list protects nothing</b>. The opposite
+ * interpretation would turn the default configuration into a grave that never loses anything,
+ * i.e. a feature that looks like it works and does nothing.
  */
 public final class ProtectionRules {
 
@@ -59,7 +59,7 @@ public final class ProtectionRules {
         for (String raw : strings(nbtStrings)) {
             int equals = raw.indexOf('=');
             if (equals <= 0 || equals == raw.length() - 1) {
-                continue; // popsuty wpis jest ignorowany, nigdy fatalny
+                continue; // a malformed entry is ignored, never fatal
             }
             String key = raw.substring(0, equals).trim();
             String value = raw.substring(equals + 1).trim();
@@ -71,7 +71,7 @@ public final class ProtectionRules {
         return new ProtectionRules(parsedItems, parsedPrefixes, parsedEnchantments, parsedPairs);
     }
 
-    /** Same Stringi z listy configu; null, nie-Stringi i cala lista null sa pomijane. */
+    /** Only the Strings from a config list; null, non-Strings and a null list as a whole are skipped. */
     private static List<String> strings(List<?> raw) {
         List<String> out = new ArrayList<String>();
         if (raw == null) {

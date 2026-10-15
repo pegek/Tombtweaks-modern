@@ -14,7 +14,7 @@ class CooldownTest {
     private static final long MINUTE = 60_000L;
 
     @Test
-    void parserCzytaParyNazwaMinuty() {
+    void parserReadsNameMinutesPairs() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList(
                 "tombstone:book_of_disenchantment;6",
                 "tombstone:book_of_magic_impregnation;12"));
@@ -24,22 +24,22 @@ class CooldownTest {
     }
 
     @Test
-    void nieznanaKsiegaNieMaCooldownu() {
+    void unknownBookHasNoCooldown() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;5"));
         assertEquals(0L, rules.millisFor("tombstone:book_of_oblivion"));
     }
 
     @Test
-    void zeroMinutOznaczaWylaczony() {
+    void zeroMinutesMeansDisabled() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;0"));
         assertEquals(0L, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void popsuteWpisySaPomijaneANieFatalne() {
+    void malformedEntriesAreSkippedNotFatal() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList(
-                "bez_srednika",
-                "tombstone:book_of_scribe;nie_liczba",
+                "no_semicolon",
+                "tombstone:book_of_scribe;not_a_number",
                 ";7",
                 "tombstone:book_of_scribe;5"));
 
@@ -47,35 +47,35 @@ class CooldownTest {
     }
 
     @Test
-    void minutySaOgraniczoneDoDwunastuGodzin() {
+    void minutesAreClampedToTwelveHours() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;9000"));
         assertEquals(720L * MINUTE, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void ujemneMinutyToBrakCooldownu() {
+    void negativeMinutesMeanNoCooldown() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;-3"));
         assertEquals(0L, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void pustaKonfiguracjaJestPusta() {
+    void emptyConfigIsEmpty() {
         assertTrue(CooldownRules.parse(new ArrayList<String>()).isEmpty());
     }
 
     @Test
-    void nullINieStringiWKonfiguracjiSaPomijane() {
+    void nullAndNonStringsInConfigAreSkipped() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList(null, 7, "tombstone:book_of_scribe;5"));
         assertEquals(5L * MINUTE, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void nullowaListaToPusteReguly() {
+    void nullListMeansEmptyRules() {
         assertTrue(CooldownRules.parse(null).isEmpty());
     }
 
     @Test
-    void pozostalyCzasMalejeIDochodziDoZera() {
+    void remainingTimeShrinksToZero() {
         long lastUse = 1_000_000L;
         long cooldown = 10L * MINUTE;
 
@@ -86,21 +86,21 @@ class CooldownTest {
     }
 
     @Test
-    void brakUzyciaToBrakCooldownu() {
+    void noUseMeansNoCooldown() {
         assertEquals(0L, Cooldown.remaining(0L, 10L * MINUTE, 5_000_000L));
         assertFalse(Cooldown.isActive(0L, 10L * MINUTE, 5_000_000L));
     }
 
     @Test
-    void cofnietyZegarNieBlokujeGracza() {
-        // Zegar systemowy moze sie cofnac (zmiana czasu, synchronizacja NTP).
-        // Nie wolno przez to zamknac graczowi ksiegi na wieki.
+    void rewoundClockDoesNotBlockPlayer() {
+        // The system clock can go backwards (time change, NTP sync).
+        // That must not lock the player out of the book forever.
         assertEquals(0L, Cooldown.remaining(5_000_000L, 10L * MINUTE, 1_000L));
         assertFalse(Cooldown.isActive(5_000_000L, 10L * MINUTE, 1_000L));
     }
 
     @Test
-    void aktywnyDopokiCosZostalo() {
+    void activeWhileAnyTimeRemains() {
         long lastUse = 1_000_000L;
         assertTrue(Cooldown.isActive(lastUse, 10L * MINUTE, lastUse + MINUTE));
         assertFalse(Cooldown.isActive(lastUse, 10L * MINUTE, lastUse + 10L * MINUTE));

@@ -16,7 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** Jedyne miejsce, w ktorym ItemStack zamienia sie w cos, co rozumie core. */
+/** The only place where an ItemStack turns into something core understands. */
 public final class StackViews {
 
     private static final String UNKNOWN = "minecraft:air";
@@ -34,8 +34,8 @@ public final class StackViews {
     }
 
     /**
-     * Hash NBT musi byc stabilny miedzy restartami JVM, bo snapshoty sa zapisywane.
-     * {@code CompoundTag.hashCode()} liczy sie z zawartosci, wiec jest.
+     * The NBT hash must be stable across JVM restarts, because snapshots are persisted.
+     * {@code CompoundTag.hashCode()} is computed from the content, so it is.
      */
     public static ItemKey keyOf(ItemStack stack) {
         CompoundTag tag = stack.getTag();

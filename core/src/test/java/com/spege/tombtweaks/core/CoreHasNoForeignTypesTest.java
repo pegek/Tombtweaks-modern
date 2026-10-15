@@ -15,18 +15,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * Pilnuje jedynej wlasnosci, ktora czyni pakiet core wartym istnienia: braku typow obcych.
- * Skanuje skompilowane klasy, bo nazwy typow siedza w constant poolu jako zwykly tekst -
- * dzieki temu lapie tez uzycie w pelni kwalifikowana nazwa, bez importu.
+ * Guards the one property that makes the core package worth having: the absence of foreign types.
+ * It scans the compiled classes, because type names sit in the constant pool as plain text -
+ * so it also catches use of a fully qualified name, with no import.
  */
 class CoreHasNoForeignTypesTest {
 
-    // core kompiluje sie w buildach 1.16.5 (Forge), 1.20.1 (Forge) i 1.21.1 (NeoForge).
+    // core is compiled in the 1.16.5 (Forge), 1.20.1 (Forge) and 1.21.1 (NeoForge) builds.
     private static final String[] FORBIDDEN = {
         "net/minecraft", "net/minecraftforge", "net/neoforged", "ovh/corail"
     };
 
-    /** Zakazane nazwy typow, ktore constant pool danej klasy zawiera jako zwykly tekst. */
+    /** Forbidden type names that the given class's constant pool contains as plain text. */
     private static List<String> foreignTypesIn(Path classFile) throws IOException {
         String bytes = new String(Files.readAllBytes(classFile), StandardCharsets.ISO_8859_1);
         List<String> hits = new ArrayList<String>();
@@ -43,8 +43,8 @@ class CoreHasNoForeignTypesTest {
         Path root = Paths.get("build", "classes", "java", "main",
                               "com", "spege", "tombtweaks", "core");
         assertTrue(Files.isDirectory(root),
-                   "brak skompilowanych klas core pod " + root.toAbsolutePath()
-                   + " - uruchom test przez ./gradlew test, nie z IDE bez kompilacji");
+                   "no compiled core classes under " + root.toAbsolutePath()
+                   + " - run the test through ./gradlew test, not from an IDE without compiling");
 
         List<Path> classFiles;
         try (Stream<Path> files = Files.walk(root)) {
@@ -57,20 +57,20 @@ class CoreHasNoForeignTypesTest {
             offenders.addAll(foreignTypesIn(file));
         }
 
-        assertTrue(offenders.isEmpty(), "core nazywa typy obce: " + offenders);
+        assertTrue(offenders.isEmpty(), "core names foreign types: " + offenders);
     }
 
     @Test
     void theScanWouldActuallyCatchSomething() throws IOException {
-        // Kontrola samego skanu: klasa moda (poza core) nazywa net/minecraftforge, wiec ten
-        // sam skan MUSI cos na niej znalezc. Gdyby skan byl zepsuty, test powyzej przechodzilby
-        // pusto.
+        // A check of the scan itself: a mod class (outside core) names net/minecraftforge, so the
+        // same scan MUST find something in it. If the scan were broken, the test above would pass
+        // vacuously.
         Path modClass = Paths.get("build", "classes", "java", "main",
                                   "com", "spege", "tombtweaks", "TombTweaks.class");
         assertTrue(Files.exists(modClass),
-                   "brak " + modClass.toAbsolutePath() + " - kontrola skanu nie ma na czym dzialac");
+                   "missing " + modClass.toAbsolutePath() + " - the scan check has nothing to work on");
 
         assertFalse(foreignTypesIn(modClass).isEmpty(),
-                    "skan nie znalazl typow obcych w klasie, ktora ich na pewno uzywa");
+                    "the scan found no foreign types in a class that certainly uses them");
     }
 }

@@ -13,28 +13,28 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ovh.corail.tombstone.enchantment.TombstoneEnchantment;
 
 /**
- * Dwie poprawki na klasie bazowej wszystkich 12 enchantow Tombstone'a. Zadna podklasa w 9.1.4
- * nie nadpisuje {@code canEnchant}, {@code isDiscoverable} ani {@code isTradeable}, wiec obie
- * dzialaja dla kazdego z nich.
+ * Two fixes on the base class of all 12 Tombstone enchantments. No subclass in 9.1.4
+ * overrides {@code canEnchant}, {@code isDiscoverable} or {@code isTradeable}, so both
+ * work for each of them.
  *
- * <p><b>1. Wylaczony enchant naprawde znika ze skrzyn i od bibliotekarzy.</b> Tombstone uzaleznia
- * od {@code isEnabled()} trzy flagi: {@code canEnchant}, {@code canApplyAtEnchantingTable}
- * i {@code isAllowedOnBooks}. Vanillowe zrodla, ktore pytaja o cos innego, przepuszczaly wiec
- * wylaczony enchant:
+ * <p><b>1. A disabled enchantment really disappears from chests and from librarians.</b>
+ * Tombstone makes three flags depend on {@code isEnabled()}: {@code canEnchant},
+ * {@code canApplyAtEnchantingTable} and {@code isAllowedOnBooks}. Vanilla sources that ask
+ * about something else therefore let a disabled enchantment through:
  * <ul>
- *   <li>{@code EnchantRandomlyFunction} (ksiegi w lootach skrzyn) filtruje po
- *       {@code isDiscoverable()}, a dla ksiazki pomija {@code canEnchant};</li>
- *   <li>{@code VillagerTrades.EnchantBookForEmeralds} (bibliotekarze) filtruje po
+ *   <li>{@code EnchantRandomlyFunction} (books in chest loot) filters by
+ *       {@code isDiscoverable()}, and for a book skips {@code canEnchant};</li>
+ *   <li>{@code VillagerTrades.EnchantBookForEmeralds} (librarians) filters by
  *       {@code isTradeable()}.</li>
  * </ul>
- * Tombstone nie nadpisuje zadnej z nich, wiec mixin je DODAJE: {@code isEnabled() && super}.
- * Dla wlaczonych enchantow nic sie nie zmienia. Nazwy przezywaja reobfuskacje, bo klasa mixina
- * dziedziczy po {@code Enchantment} - reobf zamienia je na {@code m_6592_} / {@code m_6594_},
- * co sprawdzamy w zbudowanym jarze.
+ * Tombstone overrides neither of them, so the mixin ADDS them: {@code isEnabled() && super}.
+ * For enabled enchantments nothing changes. The names survive reobfuscation, because the mixin
+ * class inherits from {@code Enchantment} - reobf turns them into {@code m_6592_} /
+ * {@code m_6594_}, which we check in the built jar.
  *
- * <p><b>2. Kowadlo odmawia Soulbounda na kluczu do grobu</b>, gdy klucze sa odporne na Soulbound
- * (patrz {@link GraveKeyPolicy}). {@code canEnchant} to metoda Minecrafta nadpisana przez
- * Tombstone'a, wiec selektor jest remapowany przez refmape ({@code m_6081_}).
+ * <p><b>2. The anvil refuses Soulbound on a grave key</b>, when keys are immune to Soulbound
+ * (see {@link GraveKeyPolicy}). {@code canEnchant} is a Minecraft method overridden by
+ * Tombstone, so the selector is remapped through the refmap ({@code m_6081_}).
  */
 @Mixin(TombstoneEnchantment.class)
 public abstract class MixinTombstoneEnchantment extends Enchantment {

@@ -4,12 +4,12 @@ import java.util.List;
 import java.util.function.IntUnaryOperator;
 
 /**
- * Ktory zajety slot rozkladajacy sie grob oddaje nastepny.
+ * Which occupied slot a decaying grave gives up next.
  *
- * <p>Dwie listy kandydatow, nie jedna. Stacki niechronione sa zjadane pierwsze; chronione
- * sa w ogole nieosiagalne, dopoki zostalo cokolwiek innego. Gdy zostaly tylko one, decyduje
- * {@code neverDecay}: prawda = ochrona jest zwolnieniem (grob staje w miejscu),
- * falsz = ochrona byla tylko kolejnoscia.
+ * <p>Two candidate lists, not one. Unprotected stacks are eaten first; protected ones
+ * are unreachable altogether as long as anything else is left. When only they remain,
+ * {@code neverDecay} decides: true = protection is an exemption (the grave stops in place),
+ * false = protection was only an ordering.
  */
 public final class DecayVictim {
 
@@ -19,12 +19,12 @@ public final class DecayVictim {
     }
 
     /**
-     * @param unprotected indeksy slotow ze stackiem niechronionym
-     * @param guarded     indeksy slotow ze stackiem chronionym
-     * @param neverDecay  czy ochrona jest zwolnieniem, czy tylko kolejnoscia
-     * @param random      bound -&gt; wartosc z przedzialu [0, bound); wartosc spoza przedzialu
-     *                    jest zawijana, nie rzucana - to dziala w ticku serwera grobu,
-     *                    a wyjatek tam wywalilby serwer
+     * @param unprotected indices of slots holding an unprotected stack
+     * @param guarded     indices of slots holding a protected stack
+     * @param neverDecay  whether protection is an exemption or only an ordering
+     * @param random      bound -&gt; value in the range [0, bound); an out-of-range value
+     *                    is wrapped, not thrown - this runs in the grave's server tick,
+     *                    and an exception there would crash the server
      */
     public static int pick(List<Integer> unprotected, List<Integer> guarded,
                            boolean neverDecay, IntUnaryOperator random) {

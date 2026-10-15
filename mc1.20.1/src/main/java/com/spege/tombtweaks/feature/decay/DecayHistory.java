@@ -16,15 +16,15 @@ import net.minecraft.world.level.Level;
 import java.util.UUID;
 
 /**
- * Co grob juz stracil.
+ * What the grave has already lost.
  *
- * <p>Wersja z 1.12.2 zapisywala historie przez wyszukanie gracza PO NAZWIE, wiec grob
- * gracza offline rozkladal sie bez sladu - dokladnie w scenariuszu, dla ktorego feature
- * powstal. Tutaj kluczem jest UUID; dla gracza offline wpis idzie na razie tylko do logu
- * (na poziomie DEBUG - przy domyslnym interwale to linia na minute na kazdy grob).
+ * <p>The 1.12.2 version recorded history by looking the player up BY NAME, so the grave
+ * of an offline player decayed without a trace - exactly the scenario the feature
+ * was made for. Here the key is the UUID; for an offline player the entry goes only to the
+ * log for now (at DEBUG level - at the default interval that is one line per minute per grave).
  *
- * <p>Wpis trzyma tylko id i ilosc, nie pelne NBT stacka: historia nie ma w v1 zadnego
- * konsumenta, a shulker box w kazdym wpisie potrafilby rozdac playerdata do megabajtow.
+ * <p>An entry holds only the id and count, not the full stack NBT: in v1 the history has no
+ * consumer, and a shulker box in every entry could inflate playerdata to megabytes.
  */
 public final class DecayHistory {
 

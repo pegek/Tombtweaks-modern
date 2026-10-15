@@ -1,85 +1,88 @@
 # CLAUDE.md
 
-Wiedza projektu dla Claude Code. Ładuje się w każdej sesji otwartej w tym folderze — to jest „pamięć" tego projektu, nie pamięć sesji w `modDev`.
+Project knowledge for Claude Code. It is loaded in every session opened in this folder — it is this project's "memory", not the session memory of `modDev`.
 
-## Projekt
+## Project
 
-**TombTweaks (modern)** — addon do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) dla Minecrafta **1.16.5, 1.20.1 i 1.21.1**. modid `tombtweaks`, pakiet `com.spege.tombtweaks`. Repo: `github.com/pegek/Tombtweaks-modern`.
+**TombTweaks (modern)** — an addon for [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) for Minecraft **1.16.5, 1.20.1 and 1.21.1**. modid `tombtweaks`, package `com.spege.tombtweaks`. Repo: `github.com/pegek/Tombtweaks-modern` (local folder `E:\Isuth\tombtweaks-modern`; it was called `E:\Isuth\tombtweaks-1201` back when it only held the 1.20.1 port — older notes and plans may still use that name).
 
-`tombtweaks` dla **1.12.2** to osobna linia w repo `E:\Isuth\modDev` (moduł `tombtweaks/`, FG3, bez refmapy, inne funkcje). Nic stamtąd nie obowiązuje tutaj automatycznie — w szczególności zasada `-proc:none` / „bez refmapy" z tamtego `CLAUDE.md` jest tu **odwrotna**.
+`tombtweaks` for **1.12.2** is a separate line in the `E:\Isuth\modDev` repo (module `tombtweaks/`, FG3, no refmap, different features). Nothing from there applies here automatically — in particular the `-proc:none` / "no refmap" rule from that `CLAUDE.md` is the **opposite** here.
 
-Funkcje (stan na 0.2.0 dla 1.20.1; 1.21.1 i 1.16.5 w toku — macierz w `docs/specs/2026-10-16-multiversion-design.md`):
-- `[restore]` — odzyskany grób oddaje przedmioty na te same sloty;
-- `[decay]` — nieodwiedzony grób gubi zawartość (domyślnie wyłączone);
-- `[cooldown]` — cooldowny ksiąg Tombstone'a;
-- `[graveKeys] survivesDeath` — klucze odporne na Soulbound;
-- zawsze: enchanty wyłączone w configu Tombstone'a znikają z lootu i handlu (tylko tam, gdzie Tombstone ma taki przełącznik — nie na 1.21.1).
+Features (state as of 0.2.0 for 1.20.1; 1.21.1 and 1.16.5 in progress — matrix in `docs/superpowers/specs/2026-10-16-multiversion-design.md`):
+- `[restore]` — a recovered grave returns items to the same slots;
+- `[decay]` — an unvisited grave loses its contents (disabled by default);
+- `[cooldown]` — cooldowns on Tombstone's books;
+- `[graveKeys] survivesDeath = false` — grave keys become immune to Soulbound: carried keys go into the new grave instead of surviving every death (Tombstone hard-wires them as soulbound);
+- always: enchantments disabled in Tombstone's config disappear from loot and trading (only where Tombstone has such a switch — not on 1.21.1).
 
-## Układ i budowanie
+## Layout and building
 
 ```
-core/        WSPÓLNY kod decyzyjny — Java 8, zero typów MC/Forge/NeoForge/Tombstone, JUnit 5
+core/        SHARED decision code — Java 8, zero MC/Forge/NeoForge/Tombstone types, JUnit 5
 mc1.16.5/    Forge 36,  ForgeGradle 5, Gradle 7, Java 8
 mc1.20.1/    Forge 47,  ForgeGradle 6, Gradle 8.7, Java 17
-mc1.21.1/    NeoForge 21.1, ModDevGradle, Gradle 8, Java 21
-docs/        specs/, plans/, checklists/in-game-<mc>.md
+mc1.21.1/    NeoForge 21.1.262, ModDevGradle 2.0.148, Gradle 8.10.2, Java 21
+docs/        superpowers/specs/, superpowers/plans/, checklists/in-game-<mc>.md
 ```
 
-Każdy `mcX/` to **niezależny build z własnym wrapperem**; buduje się go z jego katalogu:
+Each `mcX/` is an **independent build with its own wrapper**; build it from its own directory:
 
 ```bash
-cd mc1.20.1 && ./gradlew check build     # testy core + platform, straże, jar w build/libs/
+cd mc1.20.1 && ./gradlew check build     # core + platform tests, guards, jar in build/libs/
 ```
 
-Wszystkie buildy dołączają `../core/src/{main,test}/java` przez `sourceSets.*.java.srcDir` — **nie kopiuj `core` do buildów**. Testy `core` lecą w każdym buildzie, czyli na JVM 8, 17 i 21.
+All builds include `../core/src/{main,test}/java` via `sourceSets.*.java.srcDir` — **do not copy `core` into the builds**. The `core` tests run in every build, i.e. on JVM 8, 17 and 21.
 
-JDK: domyślne `JAVA_HOME` na tej maszynie to **JDK 8** i Gradle na nim chodzi. Kompilację robi toolchain (foojay pobiera 17/21 sam). Ręcznie rejestrowane zadanie `JavaCompile` **nie dziedziczy** toolchaina — trzeba podać `javaCompiler = javaToolchains.compilerFor {…}`, inaczej `--release` jest nieznaną flagą (tak jest w `compileCoreJava8`).
+JDK: the default `JAVA_HOME` on this machine is **JDK 8**. The Forge builds run Gradle on it and compile through the toolchain (foojay downloads 17 itself). **The NeoForge plugin refuses to run on a Gradle daemon below Java 17**, so `mc1.21.1/gradle/gradle-daemon-jvm.properties` (`toolchainVersion=21`) makes Gradle start its daemon on a locally installed JDK 21 — Gradle 8.10 cannot download a daemon JDK, so a JDK 21 must be installed on any machine building 1.21.1. A manually registered `JavaCompile` task does **not inherit** the toolchain — you have to supply `javaCompiler = javaToolchains.compilerFor {…}`, otherwise `--release` is an unknown flag (that is how `compileCoreJava8` is set up).
 
-## Twarde zasady
+## Hard rules
 
-1. **`core` = składnia i API Javy 8, zero typów obcych.** Pilnują tego mechanicznie `CoreHasNoForeignTypesTest` (skan skompilowanych klas na `net/minecraft`, `net/minecraftforge`, `net/neoforged`, `ovh/corail`) i `compileCoreJava8` (`--release 8`). Bez rekordów, `var`, `List.of`, switch-expression. Testy mogą używać nowszej Javy.
-2. **Buildy Forge (1.16.5, 1.20.1): refmapa jest obowiązkowa.** Nigdy `-proc:none`. MixinGradle 0.7 **nie dodaje procesora sam** — potrzebne jawne `annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'`. Bez tego build jest zielony i cichy, a jar nie ma refmapy → crash w prawdziwej instancji, którego `runClient` nie pokaże (dev ma nazwy oficjalne). **Dowód poprawności to wpis w `tombtweaks.refmap.json` w zbudowanym jarze**, nie cisza procesora.
-3. **NeoForge 1.21.1 ma w runtime nazwy oficjalne Mojanga** — bez SRG i bez reobfuskacji, więc refmapa nie jest potrzebna do mapowania nazw MC.
-4. **`fg.deobf(files(...))` nie działa na ForgeGradle 6** — po cichu podsuwa jar zaobfuskowany, z jednym ostrzeżeniem w logu konfiguracji. Zależności z CurseMaven (`curse.maven:<slug>-<projectId>:<fileId>`).
-5. **Jarów Tombstone'a ani innych modów nie commitujemy.** Licencja „All rights reserved". Źródło: CurseMaven (Tombstone = projekt 243707).
-6. **Cele mixinów potwierdzaj `javap -p -c`, przypisując wywołanie do metody, w której leży** — `grep -A` przelewa się przez granice metod. Redirect wymaga dokładnie jednego wywołania celu w metodzie; policz je.
-7. **Zmiana wersji Tombstone'a** = porównanie `javap -p` wszystkich klas-celów (mixiny, eventy, pola) między starą a nową wersją + liczba wywołań w metodach z redirectami. Wzorzec: 9.1.4 → 9.1.5 (identyczne). Rozpakowuj jary do świeżego katalogu — pliki w scratchpadzie bywają czyszczone i stare porównanie potrafi po cichu porównać pustkę z treścią.
-8. **Mixin, który DODAJE metodę nadpisującą metodę MC** (np. `isDiscoverable` w `MixinTombstoneEnchantment`), musi dziedziczyć po tej klasie MC — wtedy reobfuskacja zamienia nazwę na SRG. Sprawdź w zbudowanym jarze `javap`: na 1.20.1 metody mają się nazywać `m_6592_` / `m_6594_`.
-9. **Testy w grze robi autor, na zbudowanym jarze w prawdziwej instancji** — nie w `runClient`. Listy: `docs/checklists/in-game-<mc>.md`. Agenci nie uruchamiają `runClient`/`runServer` (blokują i otwierają okno).
-10. Zakres Tombstone'a w `mods.toml` przypięty do wersji zweryfikowanych (np. `[9.1.4,9.2)`), bo mixiny są `required: true` + `defaultRequire: 1` — lepiej, żeby Forge odmówił startu z czytelnym komunikatem, niż żeby gra wywaliła się przy ładowaniu klasy.
+1. **`core` = Java 8 syntax and API, zero foreign types.** This is enforced mechanically by `CoreHasNoForeignTypesTest` (a scan of the compiled classes for `net/minecraft`, `net/minecraftforge`, `net/neoforged`, `ovh/corail`) and `compileCoreJava8` (`--release 8`). No records, `var`, `List.of`, switch expressions. Tests may use newer Java.
+2. **Forge builds (1.16.5, 1.20.1): the refmap is mandatory.** Never `-proc:none`. MixinGradle 0.7 **does not add the processor by itself** — an explicit `annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'` is required. Without it the build is green and silent, and the jar has no refmap → a crash in a real instance that `runClient` will not show (dev uses official names). **The proof of correctness is an entry in `tombtweaks.refmap.json` inside the built jar**, not the silence of the processor.
+3. **NeoForge 1.21.1 uses Mojang's official names at runtime** — no SRG and no reobfuscation, so a refmap is not needed to map MC names.
+4. **`fg.deobf(files(...))` does not work on ForgeGradle 6** — it silently supplies the obfuscated jar, with a single warning in the configuration log. Dependencies come from CurseMaven (`curse.maven:<slug>-<projectId>:<fileId>`).
+5. **We do not commit Tombstone's jars or any other mod's jars.** The licence is "All rights reserved". Source: CurseMaven (Tombstone = project 243707).
+6. **Confirm mixin targets with `javap -p -c`, attributing the call to the method it sits in** — `grep -A` spills across method boundaries. A redirect requires exactly one call of the target in the method; count them.
+7. **Changing the Tombstone version** = a `javap -p` comparison of all target classes (mixins, events, fields) between the old and the new version + the number of calls in the methods with redirects. Pattern: 9.1.4 → 9.1.5 (identical). Unpack jars into a fresh directory — files in the scratchpad get cleaned up from time to time, and an old comparison can silently compare nothing with something.
+8. **A mixin that ADDS a method overriding an MC method** (e.g. `isDiscoverable` in `MixinTombstoneEnchantment`) must inherit from that MC class — only then does reobfuscation swap the name for the SRG one. Check the built jar with `javap`: on 1.20.1 the methods must be named `m_6592_` / `m_6594_`.
+9. **In-game tests are done by the author, on the built jar in a real instance** — not in `runClient`. Lists: `docs/checklists/in-game-<mc>.md`. Agents do not run `runClient`/`runServer` (they block and open a window).
+10. The Tombstone range in `mods.toml` is pinned to the verified versions (e.g. `[9.1.4,9.2)`), because the mixins are `required: true` + `defaultRequire: 1` — it is better for Forge to refuse to start with a readable message than for the game to crash on a class load.
 
-## Niezmienniki funkcji
+## Feature invariants
 
-- **Restore: najgorszy przypadek = zachowanie Tombstone'a**, nigdy zgubiony ani zdublowany przedmiot. Gwarantuje to jedno: przedmiot jest wstawiany wyłącznie do pustego slotu, sprawdzonego ponownie tuż przed wyjęciem z grobu. `SlotPlan.NO_SEAT` sam niczego nie gwarantuje.
-- Restore działa **tylko dla właściciela grobu** (`getPlayer()` to ten, kto *otwiera* grób — także posiadacz klucza). Porównanie po nazwie z `getOwnerName()`, nie przez `isOwner` (zwraca `true` dla grobu bez `ownerId`).
-- Tombstone **scala groby**: druga śmierć w promieniu 20 bloków od nieodebranego grobu dokłada do niego przedmioty i zeruje `deathDate` oraz `countTicks`. Stąd dwuprzebiegowe `SlotPlan.assign` po całym grobie.
-- Decay: inwentarz grobu to gołe `ItemStackHandler` bez `onContentsChanged` — **po wyjęciu obowiązkowe `grave.setChanged()`**, inaczej po restarcie przedmiot jest i na ziemi, i w grobie. Historia zapisywana **przed** `Containers.dropItemStack`, który zużywa stack.
-- Cooldown kluczowany po **`Item` księgi**, nie po stacku (księga się zużywa, pusty stack raportuje `minecraft:air`).
-- Lista ochrony w decay: **pusta lista nie chroni niczego.**
-- Config czytany na bieżąco; flagi nie bramkują mixinów (brak `IMixinConfigPlugin`) — komentarze mówią „read live".
+- **Restore: the worst case = Tombstone's behaviour**, never a lost or duplicated item. This is guaranteed by one thing: an item is inserted only into an empty slot, re-checked right before it is taken out of the grave. `SlotPlan.NO_SEAT` guarantees nothing by itself.
+- Restore works **only for the grave's owner** (`getPlayer()` is whoever *opens* the grave — a key holder too). Compare by name with `getOwnerName()`, not via `isOwner` (it returns `true` for a grave without an `ownerId`).
+- Tombstone **merges graves**: a second death within 20 blocks of an uncollected grave adds items to it and resets `deathDate` and `countTicks`. Hence the two-pass `SlotPlan.assign` over the whole grave.
+- Decay: the grave's inventory is a bare `ItemStackHandler` without `onContentsChanged` — **after taking an item out, `grave.setChanged()` is mandatory**, otherwise after a restart the item is both on the ground and in the grave. The history is written **before** `Containers.dropItemStack`, which consumes the stack.
+- Cooldown is keyed by the book's **`Item`**, not by the stack (the book gets used up, and an empty stack reports `minecraft:air`).
+- The protection list in decay: **an empty list protects nothing.**
+- Config is read live; the flags do not gate mixins (there is no `IMixinConfigPlugin`) — the comments say "read live".
 
-## Ustalenia o Tombstonie (bajtkod)
+## Findings about Tombstone (bytecode)
 
 | | 1.16.5 / 7.0.0 | 1.20.1 / 9.1.4–9.1.5 | 1.21.1 / 9.5.6 (NeoForge) |
 |---|---|---|---|
-| Restore | `RestoreInventoryEvent` | `RestoreInventoryEvent` na `MinecraftForge.EVENT_BUS`, po loss-on-death, przed auto-equipem | ten sam event, `IItemHandler` z NeoForge |
-| Snapshot przy śmierci | — | Tombstone zbiera przedmioty w `LivingDropsEvent`, jego `LivingDeathEvent` jest LOWEST → nasz HIGHEST widzi nietknięty ekwipunek | do sprawdzenia |
-| Grób | TE z `tick()` | `BlockEntityPlayerGrave.serverTick` statyczne; `countTicks` zapisywany w NBT; `deathDate` = `System.currentTimeMillis()` | `serverTick`, `countTicks` |
-| Księgi | — | `ItemBook.canEnchant`; `setEnchant` wołane raz, w `BlockDecorativeGrave.use` (`m_6227_`); `ConsumeResult.result()` = `SUCCESS`/`FAIL` | `canEnchant`; `setEnchant` w `useItemOn` |
-| Klucz soulbound | `EntityHelper.hasSoulbound` zwraca `true` dla `grave_key`; jedno wywołanie w `storeSoulboundsOnBody` | flaga `forceSoulbound` → `getEnchantmentLevel(soulbound)` = 1; decyzja: jedno `Helper.isSoulbound` w `storeSoulboundsOnBody` | `Helper.isSoulbound(ItemStack, Level)` = komponent `SOULBOUND` lub enchant; jedno wywołanie w `storeSoulboundsOnBody` |
-| Enchanty | klasy | klasy; config gatuje `canEnchant`/`canApplyAtEnchantingTable`/`isAllowedOnBooks`, **nie** `isDiscoverable`/`isTradeable` | **JSON** (`data/tombstone/enchantment/`), brak przełącznika „enable", tylko `*EnchantingTable`; wszystkie w tagach `on_random_loot`/`tradeable` |
+| Restore | `RestoreInventoryEvent` on `MinecraftForge.EVENT_BUS` | `RestoreInventoryEvent` on `MinecraftForge.EVENT_BUS`, after loss-on-death, before auto-equip | the same event on `NeoForge.EVENT_BUS`, `IItemHandler` from NeoForge |
+| Snapshot on death | Tombstone's `LivingDeathEvent` listener is LOWEST | Tombstone collects the items in `LivingDropsEvent`, its `LivingDeathEvent` is LOWEST → our HIGHEST sees an untouched inventory | to be checked |
+| Persisted player data | — | `Player.PERSISTED_NBT_TAG` | literal `"PlayerPersisted"`; NeoForge 21.1.262 `ServerPlayer.restoreFrom` copies it unconditionally (also on death respawn) |
+| Grave | `tick()` (`func_73660_a`) declared on **`TileEntityWritableGrave`** (the player grave does not override it); `countTicks` is an **`int`**, saved/loaded; bare `ItemStackHandler` | `BlockEntityPlayerGrave.serverTick` static; `countTicks` saved in NBT; `deathDate` = `System.currentTimeMillis()` | `serverTick`, `countTicks` (on `BlockEntityWritableGrave`); bare `ItemStackHandler` |
+| Books | `ItemBook.canEnchant`; exactly one `canEnchant` + one `setEnchant` in `BlockDecorativeGrave.use` (`func_225533_a_`); `ConsumeResult` is a class with `result()` | `ItemBook.canEnchant`; `setEnchant` called once, in `BlockDecorativeGrave.use` (`m_6227_`); `ConsumeResult.result()` = `SUCCESS`/`FAIL` | `canEnchant`; exactly one `setEnchant` in `useItemOn`; `ISoulConsumer` moved to `ovh.corail.tombstone.api.item` |
+| Soulbound key | `EntityHelper.hasSoulbound` returns `true` for `grave_key`; one call in `storeSoulboundsOnBody` | `forceSoulbound` flag → `getEnchantmentLevel(soulbound)` = 1; decision: one `Helper.isSoulbound` in `storeSoulboundsOnBody` | `Helper.isSoulbound(ItemStack, Level)` = `SOULBOUND` component or enchantment; one call in `storeSoulboundsOnBody` |
+| Enchantments | classes; `TombstoneEnchantment` does not override `func_230309_h_`/`func_230310_i_` (the 1.16 counterparts of `isTradeable`/`isDiscoverable`) | classes; the config gates `canEnchant`/`canApplyAtEnchantingTable`/`isAllowedOnBooks`, **not** `isDiscoverable`/`isTradeable` | **JSON** (`data/tombstone/enchantment/`), no "enable" switch, only `*EnchantingTable`; all of them in the `on_random_loot`/`tradeable` tags |
 
-We wszystkich wersjach klucz do grobu jest soulboundowy na sztywno, niezależnie od configu Soulbounda.
+In all versions the grave key is hard-wired as soulbound, regardless of the Soulbound config.
 
-## Konwencje
+## Conventions
 
-- Komentarze w kodzie po polsku, **bez polskich znaków** (ASCII). Komentarze configu i README dla graczy — po angielsku w configu, po polsku w README.
-- Jedna wersja moda dla wszystkich MC (`version` w każdym `mcX/build.gradle`); tagi `vX.Y.Z`. Wersję w logu czytamy z kontenera moda (manifest), nie ze stałej — stała dryfuje.
-- Każda zmiana zachowania: wpis w `README.md` i odpowiedniej liście `docs/checklists/`.
-- Logika decyzyjna do `core` (z testem), w `platform`/`feature` tylko adaptery i wykonanie, mixiny tylko delegują.
+- 🚨 **The repository is public and everything in it is in English** — code, comments, Javadoc, tests (including test method names), config comments, docs, README, CLAUDE.md, and commit messages. The author talks to Claude in Polish in chat, but nothing Polish goes into the repo (this replaces the earlier convention of Polish ASCII code comments and a Polish README). The layout of `docs/` follows the author's `modDev` workspace (`docs/superpowers/specs` and `docs/superpowers/plans`).
+- One mod version for all MC versions (`version` in every `mcX/build.gradle`); tags `vX.Y.Z`. The version in the log is read from the mod container (the manifest), not from a constant — a constant drifts.
+- Every behaviour change: an entry in `README.md` and in the relevant list under `docs/checklists/`.
+- Decision logic goes into `core` (with a test); `platform`/`feature` hold only adapters and execution; mixins only delegate.
 
-## Dokumenty
+## Documents
 
-- `docs/specs/2026-10-16-multiversion-design.md` — układ repo, macierz funkcji, etapy.
-- `docs/specs/2026-08-14-tombtweaks-1201-port-design.md` — pełne uzasadnienie funkcji (port 1.20.1, §11 = 0.2.0).
-- `docs/plans/2026-08-14-tombtweaks-1201-port.md` — plan portu 1.20.1 (historyczny; adnotacje przy zadaniach, które zastąpiono).
+- `docs/superpowers/specs/2026-10-16-multiversion-design.md` — repo layout, feature matrix, stages.
+- `docs/superpowers/specs/2026-08-14-tombtweaks-1201-port-design.md` — the full rationale for the features (the 1.20.1 port, §11 = 0.2.0).
+- `docs/superpowers/plans/2026-08-14-tombtweaks-1201-port.md` — the 1.20.1 port plan (historical; annotations on the tasks that were superseded).
+- `docs/superpowers/plans/2026-10-16-mc1211-port.md` — the 1.21.1 port plan.
+- `docs/checklists/in-game-<mc>.md` — per-version in-game verification lists (currently `in-game-1.20.1.md`).

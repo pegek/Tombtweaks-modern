@@ -6,15 +6,15 @@ import ovh.corail.tombstone.registry.ModEnchantments;
 import ovh.corail.tombstone.registry.ModItems;
 
 /**
- * Czy klucz do grobu jest odporny na Soulbound.
+ * Whether the grave key is immune to Soulbound.
  *
- * <p>Tombstone 9.1.4 traktuje kazdy klucz jako soulbound bezwarunkowo: klucz ma flage
- * {@code forceSoulbound}, przez ktora {@code ItemGeneric.getEnchantmentLevel} zwraca 1 dla
- * Soulbounda, a {@code Helper.isSoulbound} nie patrzy na {@code enableEnchantmentSoulbound}.
- * Wylaczenie Soulbounda w configu Tombstone'a zostawia wiec noszone klucze przezywajace kazda
- * smierc.
+ * <p>Tombstone 9.1.4 treats every key as soulbound unconditionally: the key has a
+ * {@code forceSoulbound} flag, through which {@code ItemGeneric.getEnchantmentLevel} returns 1 for
+ * Soulbound, and {@code Helper.isSoulbound} does not look at {@code enableEnchantmentSoulbound}.
+ * Disabling Soulbound in Tombstone's config therefore leaves carried keys surviving every
+ * death.
  *
- * <p>Oba mixiny deleguja tu cala decyzje; config czytany na biezaco.
+ * <p>Both mixins delegate the whole decision here; the config is read live.
  */
 public final class GraveKeyPolicy {
 
@@ -30,9 +30,9 @@ public final class GraveKeyPolicy {
     }
 
     /**
-     * Przy smierci: czy ten stack ma zostac przy graczu jako soulbound.
+     * On death: whether this stack should stay with the player as soulbound.
      *
-     * @param tombstone odpowiedz samego Tombstone'a ({@code Helper.isSoulbound})
+     * @param tombstone Tombstone's own answer ({@code Helper.isSoulbound})
      */
     public static boolean keepOnDeath(ItemStack stack, boolean tombstone) {
         if (tombstone && keysImmune() && isGraveKey(stack)) {
@@ -41,7 +41,7 @@ public final class GraveKeyPolicy {
         return tombstone;
     }
 
-    /** W kowadle: odmow Soulbounda na kluczu, zeby nikt nie zmarnowal ksiegi. */
+    /** At the anvil: refuse Soulbound on a key, so nobody wastes a book. */
     public static boolean refusesEnchantment(Object enchantment, ItemStack stack) {
         return enchantment == ModEnchantments.soulbound && keysImmune() && isGraveKey(stack);
     }

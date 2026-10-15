@@ -13,19 +13,20 @@ import ovh.corail.tombstone.block.BlockDecorativeGrave;
 import ovh.corail.tombstone.item.ItemBook;
 
 /**
- * Startuje cooldown dokladnie wtedy, gdy uzycie ksiegi sie powiodlo.
+ * Starts the cooldown exactly when the book use succeeded.
  *
- * <p>ISoulConsumer.setEnchant jest wolane z jednego miejsca w calym Tombstonie - stad
- * jeden redirect obejmuje wszystkie ksiegi.
+ * <p>ISoulConsumer.setEnchant is called from a single place in all of Tombstone - so
+ * one redirect covers every book.
  *
- * <p>Dwa poziomy remapowania: selektor method = "use" celuje w metode Minecrafta
- * (BlockBehaviour.use), wiec MUSI byc remapowany przez refmape - i to on jest powodem,
- * dla ktorego refmapy w tym projekcie sa wlaczone. Wewnetrzny @At celuje w czlonka
- * Tombstone'a i dostaje wlasne remap = false.
+ * <p>Two levels of remapping: the selector method = "use" targets a Minecraft method
+ * (BlockBehaviour.use), so it MUST be remapped through the refmap - and that is the reason
+ * refmaps are enabled in this project. The inner @At targets a Tombstone member
+ * and gets its own remap = false.
  *
- * <p>Receiver redirectu to ISoulConsumer, bo wywolanie to invokeinterface na tym
- * interfejsie - nie na konkretnej ksiedze. Ten sam receiver jest kluczem cooldownu:
- * to Item ksiegi, a stack moze byc juz pusty, bo ksiega zuzyla sie przy uzyciu.
+ * <p>The redirect's receiver is ISoulConsumer, because the call is invokeinterface on that
+ * interface - not on a concrete book. The same receiver is the cooldown key:
+ * it is the book's Item, and the stack may already be empty, because the book was consumed
+ * on use.
  */
 @Mixin(BlockDecorativeGrave.class)
 public class MixinBlockDecorativeGrave {
@@ -46,8 +47,8 @@ public class MixinBlockDecorativeGrave {
                                                                  ServerPlayer player,
                                                                  ItemStack stack, int soulStrength) {
         ISoulConsumer.ConsumeResult result = consumer.setEnchant(level, pos, player, stack, soulStrength);
-        // Tylko ItemBook: blokada siedzi wylacznie na ItemBook.canEnchant, wiec cooldown
-        // innego ISoulConsumer (zwoje, tablice, receptakle) startowalby i niczego nie blokowal.
+        // ItemBook only: the block sits solely on ItemBook.canEnchant, so a cooldown for
+        // another ISoulConsumer (scrolls, tablets, receptacles) would start and block nothing.
         if (result != null && result.result() == ISoulConsumer.ConsumeResult.Result.SUCCESS
                 && consumer instanceof ItemBook book) {
             BookCooldownService.start(player, book);

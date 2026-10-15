@@ -15,7 +15,7 @@ import ovh.corail.tombstone.block.entity.BlockEntityPlayerGrave;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Jeden tick jednego grobu. Wszystkie decyzje podejmuje core; tu jest tylko wykonanie. */
+/** One tick of one grave. All decisions are made by core; this is only the execution. */
 public final class GraveDecayService {
 
     private GraveDecayService() {
@@ -39,8 +39,8 @@ public final class GraveDecayService {
             return;
         }
 
-        // ProtectionRules.of przyjmuje List<?> i sam pomija null oraz nie-Stringi,
-        // wiec wartosci z configu ida wprost, bez rzutowania.
+        // ProtectionRules.of takes List<?> and skips null and non-Strings itself,
+        // so the config values go straight in, with no casting.
         ProtectionRules rules = ProtectionRules.of(
                 Config.INSTANCE.decayProtectedItems.get(),
                 Config.INSTANCE.decayProtectedItemPrefixes.get(),
@@ -72,14 +72,15 @@ public final class GraveDecayService {
         if (lost.isEmpty()) {
             return;
         }
-        // Inwentarz grobu to gole ItemStackHandler bez onContentsChanged - samo wyjecie NIE
-        // oznacza block entity jako zmienionego. Bez tego chunk moze sie zapisac ze starym
-        // stanem grobu, a wyrzucony przedmiot (encja, zapisywana osobno) przetrwa restart:
-        // po wczytaniu jest i na ziemi, i z powrotem w grobie. Duplikacja.
+        // The grave's inventory is a bare ItemStackHandler without onContentsChanged - extraction
+        // alone does NOT mark the block entity as changed. Without this the chunk may be saved with
+        // the old grave state, while the dropped item (an entity, saved separately) survives a
+        // restart: after loading it is both on the ground and back in the grave. Duplication.
         grave.setChanged();
 
-        // Historia PRZED wyrzuceniem: Containers.dropItemStack zuzywa przekazany stack
-        // (dzieli go na encje w petli do pustego), wiec po nim zostaje minecraft:air x0.
+        // History BEFORE the drop: Containers.dropItemStack consumes the stack it is given
+        // (it splits it into entities in a loop until empty), so afterwards what is left is
+        // minecraft:air x0.
         DecayHistory.record(level, pos, grave.getOwnerId(), lost);
         Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D, lost);
     }

@@ -12,18 +12,18 @@ class DecayScheduleTest {
     private static final long INTERVAL = 1_200L;
 
     @Test
-    void nicPrzedProgiem() {
+    void nothingBeforeThreshold() {
         assertFalse(DecaySchedule.shouldDecay(0L, START, INTERVAL));
         assertFalse(DecaySchedule.shouldDecay(START - 1L, START, INTERVAL));
     }
 
     @Test
-    void pierwszeOdpalenieDokladnieNaProgu() {
+    void firstFiringExactlyAtThreshold() {
         assertTrue(DecaySchedule.shouldDecay(START, START, INTERVAL));
     }
 
     @Test
-    void dokladnieJednoOdpalenieNaInterwal() {
+    void exactlyOneFiringPerInterval() {
         int fired = 0;
         for (long tick = START; tick < START + 10L * INTERVAL; tick++) {
             if (DecaySchedule.shouldDecay(tick, START, INTERVAL)) {
@@ -34,20 +34,20 @@ class DecayScheduleTest {
     }
 
     @Test
-    void zerowyInterwalNieDzieliPrzezZero() {
+    void zeroIntervalDoesNotDivideByZero() {
         assertFalse(DecaySchedule.shouldDecay(999_999L, START, 0L));
         assertFalse(DecaySchedule.shouldDecay(999_999L, START, -5L));
     }
 
     @Test
-    void cofnietyLicznikMilczy() {
-        // countTicks wraca do 0, gdy pozniejsza smierc scala sie z grobem (resetDeathTime) -
-        // to tez restartuje decay.
+    void rewoundCounterStaysSilent() {
+        // countTicks goes back to 0 when a later death merges into the grave (resetDeathTime) -
+        // that also restarts decay.
         assertFalse(DecaySchedule.shouldDecay(10L, START, INTERVAL));
     }
 
     @Test
-    void ujemnyStartLiczySieOdZera() {
+    void negativeStartCountsFromZero() {
         assertTrue(DecaySchedule.shouldDecay(0L, -1L, 1_200L));
         assertFalse(DecaySchedule.shouldDecay(1_199L, -1L, 1_200L));
     }

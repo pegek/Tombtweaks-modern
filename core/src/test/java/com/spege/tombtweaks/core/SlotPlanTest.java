@@ -31,26 +31,26 @@ class SlotPlanTest {
     }
 
     @Test
-    void trafienieDokladne() {
+    void exactHit() {
         SlotSnapshot s = snapshotWith(new SlotEntry(3, sword(42), 1));
         assertArrayEquals(new int[] { 3 }, SlotPlan.assign(s, Arrays.asList(sword(42)), ALL_FREE));
     }
 
     @Test
-    void spadekNaDopasowaniePoNazwieGdyNbtSieRozjechalo() {
+    void fallsBackToNameMatchWhenNbtDrifted() {
         SlotSnapshot s = snapshotWith(new SlotEntry(7, sword(42), 1));
         assertArrayEquals(new int[] { 7 }, SlotPlan.assign(s, Arrays.asList(sword(999)), ALL_FREE));
     }
 
     @Test
-    void dokladneMaPierwszenstwoPrzedNazwa() {
+    void exactTakesPrecedenceOverName() {
         SlotSnapshot s = snapshotWith(new SlotEntry(1, sword(11), 1), new SlotEntry(2, sword(22), 1));
         assertArrayEquals(new int[] { 2, 1 },
                 SlotPlan.assign(s, Arrays.asList(sword(22), sword(11)), ALL_FREE));
     }
 
     @Test
-    void dwaIdentyczneStackiDostajaDwaRozneMiejsca() {
+    void twoIdenticalStacksGetTwoDifferentSeats() {
         SlotSnapshot s = snapshotWith(new SlotEntry(4, bread(), 8), new SlotEntry(9, bread(), 8));
         int[] seats = SlotPlan.assign(s, Arrays.asList(bread(), bread()), ALL_FREE);
         assertNotEquals(seats[0], seats[1]);
@@ -58,48 +58,48 @@ class SlotPlanTest {
     }
 
     @Test
-    void brakDopasowaniaToRezygnacja() {
+    void noMatchMeansGivingUp() {
         SlotSnapshot s = snapshotWith(new SlotEntry(4, bread(), 8));
         assertArrayEquals(new int[] { NO },
                 SlotPlan.assign(s, Arrays.asList(new ItemKey("minecraft:stone", 0)), ALL_FREE));
     }
 
     @Test
-    void miejsceZuzywaSieRaz() {
+    void seatIsConsumedOnce() {
         SlotSnapshot s = snapshotWith(new SlotEntry(4, bread(), 8));
         assertArrayEquals(new int[] { 4, NO }, SlotPlan.assign(s, Arrays.asList(bread(), bread()), ALL_FREE));
     }
 
     @Test
-    void dryfNieKradnieMiejscaDokladnemu() {
-        // Miecz z miejsca 2 ma rozjechany hash (2 -> 99) i stoi w grobie PRZED mieczem z miejsca 1.
-        // Zachlannie zabralby miejsce 1 i oba miecze zamienilyby sie slotami.
+    void driftDoesNotStealSeatFromExactMatch() {
+        // The sword from seat 2 has a drifted hash (2 -> 99) and sits in the grave BEFORE the sword
+        // from seat 1. Greedy matching would take seat 1 and the two swords would swap slots.
         SlotSnapshot s = snapshotWith(new SlotEntry(1, sword(1), 1), new SlotEntry(2, sword(2), 1));
         assertArrayEquals(new int[] { 2, 1 },
                 SlotPlan.assign(s, Arrays.asList(sword(99), sword(1)), ALL_FREE));
     }
 
     @Test
-    void scalonyGrobNieWpychaStaregoPrzedmiotu() {
-        // Grob scalony z dwoch smierci: pierwszy miecz (hash 77) pochodzi ze smierci, ktorej
-        // snapshot nie zostal zwiazany z tym grobem. Ma zostac w grobie, a oba miecze
-        // z wiazanego snapshotu - trafic na swoje miejsca.
+    void mergedGraveDoesNotSeatOldItem() {
+        // A grave merged from two deaths: the first sword (hash 77) comes from a death whose
+        // snapshot was not bound to this grave. It is to stay in the grave, while both swords
+        // from the bound snapshot are to land on their own seats.
         SlotSnapshot s = snapshotWith(new SlotEntry(1, sword(1), 1), new SlotEntry(2, sword(2), 1));
         assertArrayEquals(new int[] { NO, 1, 2 },
                 SlotPlan.assign(s, Arrays.asList(sword(77), sword(1), sword(2)), ALL_FREE));
     }
 
     @Test
-    void zajeteMiejsceNieBierzeUdzialuWDopasowaniu() {
-        // Miejsce 1 jest zajete (np. przedmiot soulbound nigdy nie trafil do grobu).
-        // Miecz z rozjechanym hashem ma dostac miejsce 2, a nie bezuzyteczne miejsce 1.
+    void occupiedSeatTakesNoPartInMatching() {
+        // Seat 1 is occupied (e.g. a soulbound item never made it into the grave).
+        // The sword with the drifted hash is to get seat 2, not the useless seat 1.
         SlotSnapshot s = snapshotWith(new SlotEntry(1, sword(1), 1), new SlotEntry(2, sword(2), 1));
         assertArrayEquals(new int[] { 2 },
                 SlotPlan.assign(s, Arrays.asList(sword(99)), slot -> slot != 1));
     }
 
     @Test
-    void pustySlotGrobuNieDostajeMiejsca() {
+    void emptyGraveSlotGetsNoSeat() {
         SlotSnapshot s = snapshotWith(new SlotEntry(4, bread(), 8));
         assertArrayEquals(new int[] { NO, 4 }, SlotPlan.assign(s, Arrays.asList(null, bread()), ALL_FREE));
     }

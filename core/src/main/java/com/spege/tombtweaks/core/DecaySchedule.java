@@ -1,14 +1,14 @@
 package com.spege.tombtweaks.core;
 
 /**
- * Kiedy grob traci nastepny przedmiot.
+ * When a grave loses its next item.
  *
- * <p>Czysta funkcja licznika {@code countTicks} samego grobu, ktory Tombstone zapisuje do NBT
- * i wczytuje przy zaladowaniu chunka. Dzieki temu harmonogram nie potrzebuje wlasnego stanu
- * i przezywa restart serwera oraz wyladowanie chunka.
+ * <p>A pure function of the grave's own {@code countTicks} counter, which Tombstone writes to NBT
+ * and reads back when the chunk loads. This way the schedule needs no state of its own
+ * and survives both a server restart and a chunk unload.
  *
- * <p>Uwaga na semantyke: {@code countTicks} rosnie tylko wtedy, gdy grob jest zaladowany,
- * wiec {@code startTicks} liczy czas ZALADOWANIA, nie czas zegarowy.
+ * <p>Mind the semantics: {@code countTicks} only grows while the grave is loaded,
+ * so {@code startTicks} counts LOADED time, not wall-clock time.
  */
 public final class DecaySchedule {
 

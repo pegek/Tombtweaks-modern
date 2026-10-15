@@ -16,22 +16,22 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Zapisuje rozklad ekwipunku w ostatnim momencie, w ktorym jest jeszcze prawda.
+ * Records the inventory layout at the last moment at which it is still the truth.
  *
- * <p>{@code Player.die()} oproznia ekwipunek zaraz po tym evencie, a wszystko, co dociera
- * do {@code LivingDropsEvent} - gdzie Tombstone buduje grob - jest juz plaska kupka bez
- * indeksow. Wlasny listener {@code LivingDeathEvent} Tombstone'a ma priorytet LOWEST,
- * wiec na HIGHEST zawsze widzimy ekwipunek nietkniety.
+ * <p>{@code Player.die()} empties the inventory right after this event, and everything that
+ * reaches {@code LivingDropsEvent} - where Tombstone builds the grave - is already a flat pile
+ * with no indices. Tombstone's own {@code LivingDeathEvent} listener has priority LOWEST,
+ * so at HIGHEST we always see the inventory untouched.
  *
- * <p>Priorytet HIGHEST takze po to, zeby handler anulujacy smierc nie wszedl przed nami.
- * Snapshot dla smierci, ktora sie nie wydarzyla, kosztuje jeden nieuzyty wpis, ktory
- * magazyn przycina.
+ * <p>Priority HIGHEST also so that a handler cancelling the death does not get in ahead of us.
+ * A snapshot for a death that did not happen costs one unused entry, which the
+ * store prunes.
  */
 @Mod.EventBusSubscriber(modid = TombTweaks.MODID)
 public final class SnapshotCaptureHandler {
 
     private static final int MAX_PENDING = 5;
-    private static final long MAX_AGE_MILLIS = 30L * 24L * 60L * 60L * 1000L; // 30 dni
+    private static final long MAX_AGE_MILLIS = 30L * 24L * 60L * 60L * 1000L; // 30 days
 
     private SnapshotCaptureHandler() {
     }

@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SnapshotCodecTest {
 
     @Test
-    void roundTripZachowujeWszystkiePola() {
+    void roundTripPreservesAllFields() {
         SnapshotStore store = new SnapshotStore();
         SlotSnapshot first = new SlotSnapshot(1_700_000_000_123L);
         first.add(4, new ItemKey("minecraft:bread", 0), 12);
@@ -41,7 +41,7 @@ class SnapshotCodecTest {
     }
 
     @Test
-    void pustyMagazynToPustaLista() {
+    void emptyStoreIsEmptyList() {
         assertEquals(0, SnapshotCodec.write(new SnapshotStore()).size());
         assertEquals(0, SnapshotCodec.read(SnapshotCodec.write(new SnapshotStore())).all().size());
     }

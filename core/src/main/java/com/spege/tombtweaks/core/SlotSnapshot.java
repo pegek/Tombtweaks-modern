@@ -5,18 +5,18 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Plan miejsc z jednej smierci - nie kopia przedmiotow.
+ * Seating plan from one death - not a copy of the items.
  *
- * <p>Pelny zserializowany ekwipunek w danych gracza to dziesiatki kilobajtow przepisywane
- * przy kazdym autosave i, co gorsza, druga instancja prawdy o tym, co gracz posiadal.
- * Grob jest jedyna instancja prawdy; to jest wylacznie rozsadzenie gosci.
+ * <p>A full serialised inventory in player data is tens of kilobytes rewritten on every
+ * autosave and, worse, a second instance of truth about what the player owned.
+ * The grave is the only instance of truth; this is solely the seating of the guests.
  */
 public final class SlotSnapshot {
 
-    /** Main inventory zachowuje wlasne indeksy 0-35. */
+    /** The main inventory keeps its own indices 0-35. */
     public static final int ARMOR_BASE = 100;
     public static final int OFFHAND_SLOT = 150;
-    /** Zarezerwowane pod Curios. Nieuzywane w v1. */
+    /** Reserved for Curios. Unused in v1. */
     public static final int CURIOS_BASE = 200;
 
     private final long capturedAt;
@@ -35,7 +35,7 @@ public final class SlotSnapshot {
         entries.add(new SlotEntry(slot, key, count));
     }
 
-    /** Zegar scienny w milisekundach - ta sama skala co deathDate grobu. */
+    /** Wall clock in milliseconds - the same scale as the grave's deathDate. */
     public long capturedAt() {
         return capturedAt;
     }

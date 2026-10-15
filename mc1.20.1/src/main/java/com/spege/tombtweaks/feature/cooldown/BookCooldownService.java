@@ -11,11 +11,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 
 /**
- * Odczyt i zapis cooldownu jednej ksiegi. Zegar scienny, ta sama skala co Tombstone.
+ * Reading and writing one book's cooldown. Wall clock, the same scale as Tombstone.
  *
- * <p>Kluczem jest sam Item ksiegi, nie stack: ksiega zuzywa sie przy udanym uzyciu,
- * a pusty stack w 1.20.1 raportuje swoj item jako minecraft:air - cooldown kluczowany
- * po stacku po prostu by nie wystartowal.
+ * <p>The key is the book's Item itself, not the stack: the book is consumed on a successful
+ * use, and an empty stack in 1.20.1 reports its item as minecraft:air - a cooldown keyed
+ * by the stack would simply never start.
  */
 public final class BookCooldownService {
 
@@ -28,7 +28,7 @@ public final class BookCooldownService {
         return CooldownRules.parse(Config.INSTANCE.cooldownBooks.get());
     }
 
-    /** @return ile ms zostalo, 0 gdy wolne albo gdy feature jest wylaczony */
+    /** @return how many ms are left, 0 when free or when the feature is disabled */
     public static long remaining(Player player, Item book) {
         if (!Config.INSTANCE.cooldownEnabled.get()) {
             return 0L;

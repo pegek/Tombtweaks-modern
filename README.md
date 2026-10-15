@@ -1,72 +1,72 @@
 # TombTweaks (modern)
 
-Tweaki i poprawki do [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) dla Minecrafta **1.16.5, 1.20.1 i 1.21.1**. Wersja dla 1.12.2 to osobny projekt.
+Tweaks and fixes for [Corail Tombstone](https://www.curseforge.com/minecraft/mc-mods/corail-tombstone) for Minecraft **1.16.5, 1.20.1 and 1.21.1**. The 1.12.2 version is a separate project.
 
-| Feature | Co robi | Domyślnie |
+| Feature | What it does | Default |
 |---|---|---|
-| `[restore]` | Odzyskany grób oddaje przedmioty **na te same sloty**, z których zginęły — łącznie z pancerzem i offhandem | włączone |
-| `[decay]` | Nieodwiedzony grób powoli gubi zawartość na ziemię; cztery listy ochrony wyjmują wybrane przedmioty spod tego | **wyłączone** |
-| `[cooldown]` | Magiczne księgi Tombstone'a dostają cooldown, konfigurowalny per księga | włączone (2 księgi × 6 min) |
-| `[graveKeys]` | `survivesDeath = false`: klucze do grobu przestają być soulboundowe — noszone klucze trafiają do nowego grobu, a Soulbounda nie da się na klucz nałożyć | `true` (zachowanie Tombstone'a) |
-| *(zawsze)* | Enchanty Tombstone'a **wyłączone w jego configu** naprawdę znikają ze skrzyń i od bibliotekarzy | — |
+| `[restore]` | A recovered grave returns items to the **same slots** they died in — including armour and offhand | enabled |
+| `[decay]` | An unvisited grave slowly drops its contents on the ground; four protection lists exempt chosen items from that | **disabled** |
+| `[cooldown]` | Tombstone's magic books get a cooldown, configurable per book | enabled (2 books × 6 min) |
+| `[graveKeys]` | `survivesDeath = false`: grave keys stop being soulbound — carried keys end up in the new grave, and Soulbound cannot be applied to a key | `true` (Tombstone's behaviour) |
+| *(always)* | Tombstone enchantments **disabled in its config** really disappear from chests and from librarians | — |
 
-Config: `config/tombtweaks-common.toml`. Wszystkie wartości są czytane na bieżąco — bez restartu.
+Config: `config/tombtweaks-common.toml`. All values are read live — no restart needed.
 
-## Wersje
+## Versions
 
-| Minecraft | Loader | Tombstone | Stan |
+| Minecraft | Loader | Tombstone | Status |
 |---|---|---|---|
-| 1.20.1 | Forge 47+ | 9.1.4 – 9.1.x | ✅ wszystkie funkcje (0.2.0) |
-| 1.21.1 | NeoForge 21.1 | 9.5.x | w przygotowaniu — wyłączanie enchantów **nie dotyczy** (patrz niżej) |
-| 1.16.5 | Forge 36 | 7.0.0 | w przygotowaniu |
+| 1.20.1 | Forge 47+ | 9.1.4 – 9.1.x | ✅ all features (0.2.0) |
+| 1.21.1 | NeoForge 21.1 | 9.5.x | in preparation — disabling enchantments **does not apply** (see below) |
+| 1.16.5 | Forge 36 | 7.0.0 | in preparation |
 
-Zakres wersji Tombstone'a jest celowo wąski: mixiny są zweryfikowane na konkretnych wydaniach, a niezgodna wersja wolałaby nie wystartować, niż wywalić grę przy ładowaniu klasy.
+The Tombstone version range is deliberately narrow: the mixins are verified against specific releases, and an incompatible version should refuse to start rather than crash the game on a class load.
 
-**1.21.1 i wyłączone enchanty.** Od 1.21 enchanty Tombstone'a są definiowane danymi, Tombstone 9.5 nie ma przełącznika, który je wyłącza, i dopisuje wszystkie do vanillowych tagów lootu i handlu. Żeby usunąć enchant z lootu i handlu, użyj datapacka nadpisującego tagi `minecraft:on_random_loot` / `minecraft:tradeable` (albo `tombstone:enchantments`).
+**1.21.1 and disabled enchantments.** Since 1.21 Tombstone's enchantments are defined by data, Tombstone 9.5 has no switch that disables them, and it adds all of them to the vanilla loot and trading tags. To remove an enchantment from loot and trading, use a datapack that overrides the `minecraft:on_random_loot` / `minecraft:tradeable` tags (or `tombstone:enchantments`).
 
-## Jak to działa
+## How it works
 
-**Restore.** W chwili śmierci mod zapisuje *plan miejsc* — dla każdego slotu tylko id przedmiotu i hash jego NBT, nie kopię przedmiotu. Przy odzyskaniu grobu przypisuje przedmioty do miejsc w dwóch przebiegach po całym grobie (najpierw dopasowania dokładne, potem po samym id) i wstawia przedmiot **wyłącznie do pustego slotu**. Wszystko, czego nie wstawi, Tombstone rozdziela tak jak zawsze — najgorszy przypadek to zwykłe zachowanie Tombstone'a, nigdy zgubiony ani zdublowany przedmiot.
+**Restore.** At the moment of death the mod records a *seat plan* — for each slot only the item id and the hash of its NBT, not a copy of the item. When the grave is recovered it assigns items to seats in two passes over the whole grave (exact matches first, then by id alone) and inserts an item **only into an empty slot**. Whatever it does not insert, Tombstone distributes as it always does — the worst case is Tombstone's normal behaviour, never a lost or duplicated item.
 
-**Decay.** Licznik `countTicks` grobu (Tombstone go zapisuje) wyznacza harmonogram: po `startTicks` co `intervalTicks` jeden stack wypada na ziemię. Najpierw niechronione; chronione dopiero gdy nic innego nie zostało, a przy `protectedNeverDecay = true` wcale. Licznik rośnie tylko, gdy chunk jest załadowany.
+**Decay.** The grave's `countTicks` counter (Tombstone saves it) sets the schedule: after `startTicks`, one stack drops on the ground every `intervalTicks`. Unprotected ones first; protected ones only when nothing else is left, and not at all with `protectedNeverDecay = true`. The counter only advances while the chunk is loaded.
 
-**Cooldown.** Blokada siedzi na `ItemBook.canEnchant`, start cooldownu — na jedynym w Tombstonie wywołaniu `setEnchant`, tylko przy sukcesie.
+**Cooldown.** The block sits on `ItemBook.canEnchant`; the cooldown starts on the only `setEnchant` call in Tombstone, and only on success.
 
-**Klucze i Soulbound.** Tombstone traktuje każdy klucz do grobu jako soulbound bezwarunkowo (flaga `forceSoulbound`), niezależnie od enchantu i od przełącznika Soulbounda w swoim configu. Przy `survivesDeath = false` decyzja przy śmierci (`DeathHandler.storeSoulboundsOnBody`) odpowiada dla klucza „nie", więc ląduje on w nowym grobie. Klucz do grobu, który właśnie powstaje, Tombstone wydaje osobno — dostajesz go jak zawsze.
+**Keys and Soulbound.** Tombstone treats every grave key as Soulbound unconditionally (the `forceSoulbound` flag), regardless of the enchantment and of the Soulbound switch in its config. With `survivesDeath = false` the death-time decision (`DeathHandler.storeSoulboundsOnBody`) answers "no" for a key, so it lands in the new grave. The key to the grave that is just being created is issued by Tombstone separately — you get it as always.
 
-**Wyłączone enchanty.** Tombstone uzależnia od swojego configu stół do zaklinania, kowadło i księgi, ale nie `isDiscoverable()` (po nim filtruje vanillowy `enchant_randomly` w skrzyniach) ani `isTradeable()` (bibliotekarze). Mod dodaje oba nadpisania: `isEnabled() && super`. Dla enchantów włączonych nic się nie zmienia.
+**Disabled enchantments.** Tombstone ties the enchanting table, the anvil and the books to its config, but not `isDiscoverable()` (which vanilla `enchant_randomly` in chests filters on) nor `isTradeable()` (librarians). The mod adds both overrides: `isEnabled() && super`. For enabled enchantments nothing changes.
 
-## Znane ograniczenia
+## Known limitations
 
-- **Curios** nie są obsługiwane przez restore (przestrzeń slotów 200+ zarezerwowana). Tombstone ma własne `curioAutoEquip`.
-- **„Reverse inventory sorting"** — preferencja Tombstone'a per gracz, uruchamiana *po* naszym evencie; gdy włączona, odwraca odzyskany układ. Wynik weryfikacji w grze: *do uzupełnienia*.
-- **Restore działa tylko dla właściciela grobu.** Grób otwarty kluczem przez innego gracza rozdziela się standardowo.
-- **Scalone groby.** Druga śmierć w promieniu 20 bloków od nieodebranego grobu dokłada przedmioty do niego; rozsadzane są tylko przedmioty z ostatniej śmierci, starsze idą ścieżką standardową. Scalenie zeruje też licznik decay.
-- **Historia decay gracza offline** trafia tylko do logu serwera (DEBUG).
-- **Dwa komunikaty przy zablokowanej księdze:** nasz (z liczbą sekund, na pasku akcji) i własny Tombstone'a „not allowed" w czacie.
-- **Księga Soulbounda** (`book_of_soulbound`) użyta na kluczu przy `survivesDeath = false` nadal się zużyje, choć nic nie da — blokowana jest tylko droga przez kowadło.
-- **Wyłączone enchanty** w lootach innych modów, które budują własną pulę enchantów z pominięciem vanillowych funkcji, mogą nadal przeciekać — zamknięte są ścieżki vanilli.
+- **Curios** are not handled by restore (the slot space 200+ is reserved). Tombstone has its own `curioAutoEquip`.
+- **"Reverse inventory sorting"** — a per-player Tombstone preference, applied *after* our event; when enabled, it reverses the restored layout. In-game verification result: *to be filled in*.
+- **Restore only works for the grave's owner.** A grave opened with a key by another player is distributed the standard way.
+- **Merged graves.** A second death within 20 blocks of an uncollected grave adds items to it; only the items from the latest death are seated, older ones take the standard path. Merging also resets the decay counter.
+- **The decay history of an offline player** goes only to the server log (DEBUG).
+- **Two messages on a blocked book:** ours (with the number of seconds, on the action bar) and Tombstone's own "not allowed" in chat.
+- **The Soulbound book** (`book_of_soulbound`) used on a key with `survivesDeath = false` is still consumed, although it does nothing — only the anvil route is blocked.
+- **Disabled enchantments** in the loot of other mods that build their own enchantment pool bypassing the vanilla functions may still leak through — the vanilla paths are closed.
 
-## Budowanie
+## Building
 
-Repo zawiera trzy niezależne buildy — każdy budujesz ze swojego katalogu:
+The repo contains three independent builds — build each from its own directory:
 
 ```bash
-cd mc1.20.1 && ./gradlew check build   # testy + straże, jar w mc1.20.1/build/libs/
+cd mc1.20.1 && ./gradlew check build   # tests + guards, jar in mc1.20.1/build/libs/
 ```
 
-JDK (8 / 17 / 21) Gradle pobiera sam przez toolchain. Tombstone pochodzi z CurseMaven — jego jar celowo nie leży w repo (licencja „All rights reserved").
+Gradle fetches the JDK (8 / 17 / 21) itself via the toolchain. Tombstone comes from CurseMaven — its jar deliberately does not live in the repo (licence "All rights reserved").
 
-**Po każdej zmianie mixina w buildzie Forge** sprawdź, że `tombtweaks.refmap.json` w zbudowanym jarze ma wpisy dla celów będących metodami Minecrafta (1.20.1: `use` → `m_6227_`, `canEnchant` → `m_6081_`). Bez refmapy build jest zielony, a gra wywala się dopiero w prawdziwej instancji — `runClient` tego nie pokaże.
+**After every mixin change in a Forge build**, check that `tombtweaks.refmap.json` in the built jar has entries for the targets that are Minecraft methods (1.20.1: `use` → `m_6227_`, `canEnchant` → `m_6081_`). Without the refmap the build is green and the game crashes only in a real instance — `runClient` will not show it.
 
-## Architektura
+## Architecture
 
-| Katalog / pakiet | Zawartość | Testy |
+| Directory / package | Contents | Tests |
 |---|---|---|
-| `core/` | cała logika decyzyjna, **wspólna dla wszystkich wersji**; zero typów Minecrafta, loadera i Tombstone'a; składnia Javy 8 | JUnit 5, w każdym buildzie |
-| `mcX/…/platform` | config, adaptery `ItemStack` → `core`, kodek NBT | round-trip kodeka |
-| `mcX/…/feature`, `mixin` | handlery eventów i mixiny | w grze — `docs/checklists/in-game-<mc>.md` |
+| `core/` | all the decision logic, **shared by all versions**; zero Minecraft, loader and Tombstone types; Java 8 syntax | JUnit 5, in every build |
+| `mcX/…/platform` | config, `ItemStack` → `core` adapters, the NBT codec | codec round-trip |
+| `mcX/…/feature`, `mixin` | event handlers and mixins | in game — `docs/checklists/in-game-<mc>.md` |
 
-Obie zasady `core` są pilnowane mechanicznie: `CoreHasNoForeignTypesTest` skanuje skompilowane klasy, `compileCoreJava8` kompiluje `core` z `--release 8`.
+Both `core` rules are enforced mechanically: `CoreHasNoForeignTypesTest` scans the compiled classes, `compileCoreJava8` compiles `core` with `--release 8`.
 
-Uzasadnienie decyzji: `docs/specs/` — układ wielowersyjny w `2026-10-16-multiversion-design.md`, funkcje w `2026-08-14-tombtweaks-1201-port-design.md`.
+The rationale for the decisions is in `docs/superpowers/specs/` — the multi-version layout in `2026-10-16-multiversion-design.md`, the features in `2026-08-14-tombtweaks-1201-port-design.md`.

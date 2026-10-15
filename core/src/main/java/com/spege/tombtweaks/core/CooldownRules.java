@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ile trwa cooldown ktorej ksiegi.
+ * How long each book's cooldown lasts.
  *
- * <p>Format wpisu: {@code nazwa_rejestrowa;minuty}. Popsuty wpis jest pomijany, nigdy fatalny -
- * blad w configu nie ma prawa wywalic serwera. Minuty sa przycinane do 12 godzin, bo
- * wieksza wartosc to prawie na pewno pomylka, a nie zamiar.
+ * <p>Entry format: {@code registry_name;minutes}. A malformed entry is skipped, never fatal -
+ * a config mistake must not be able to crash the server. Minutes are clamped to 12 hours,
+ * because a larger value is almost certainly a mistake rather than an intention.
  */
 public final class CooldownRules {
 
@@ -29,7 +29,7 @@ public final class CooldownRules {
         }
         for (Object element : entries) {
             if (!(element instanceof String)) {
-                continue; // null i nie-String z configu: pomijane, nigdy fatalne
+                continue; // null and non-String values from the config: skipped, never fatal
             }
             String raw = (String) element;
             int separator = raw.indexOf(';');
@@ -57,7 +57,7 @@ public final class CooldownRules {
         return new CooldownRules(parsed);
     }
 
-    /** @return dlugosc cooldownu w ms, albo 0 gdy ta ksiega go nie ma */
+    /** @return cooldown length in ms, or 0 when that book has none */
     public long millisFor(String itemId) {
         Long millis = millisById.get(itemId);
         return millis == null ? 0L : millis.longValue();

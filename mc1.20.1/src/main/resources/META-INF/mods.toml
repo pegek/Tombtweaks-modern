@@ -29,13 +29,14 @@ Tweaks for Corail Tombstone: items return to the slots they came from, unvisited
 [[dependencies.tombtweaks]]
     modId="tombstone"
     mandatory=true
-    # Zweryfikowane tylko na 9.1.4. Mixiny sa required + defaultRequire 1, wiec wersja,
-    # ktora zmieni serverTick / canEnchant / wywolanie setEnchant, wywali gre przy ladowaniu
-    # klasy - lepiej, zeby Forge odmowil startu z czytelnym komunikatem o zaleznosci.
+    # Verified on 9.1.4 only. The mixins are required + defaultRequire 1, so a version
+    # that changes serverTick / canEnchant / the setEnchant call will crash the game when the
+    # class loads - better for Forge to refuse to start with a readable message about the
+    # dependency.
     versionRange="[9.1.4,9.2)"
     ordering="AFTER"
     side="BOTH"
 
-# Konfiguracja mixinow NIE jest tu deklarowana: FML 47 nie czyta [[mixins]] (to wlasnosc
-# NeoForge). Rejestruje ja atrybut MixinConfigs w manifescie jara, dopisywany przez
-# MixinGradle z bloku mixin { config ... } w build.gradle.
+# The mixin configuration is NOT declared here: FML 47 does not read [[mixins]] (that is a
+# NeoForge feature). It is registered by the MixinConfigs attribute in the jar manifest, added
+# by MixinGradle from the mixin { config ... } block in build.gradle.

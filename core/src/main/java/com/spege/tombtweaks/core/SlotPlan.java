@@ -6,29 +6,28 @@ import java.util.List;
 import java.util.function.IntPredicate;
 
 /**
- * Rozsadza zawartosc jednego grobu wedlug snapshotu - dla calego grobu naraz.
+ * Seats the contents of one grave according to a snapshot - for the whole grave at once.
  *
- * <p>Dopasowanie ma dwa przebiegi po CALYM grobie, nie po jednym przedmiocie:
+ * <p>Matching makes two passes over the WHOLE grave, not one pass per item:
  * <ol>
- *   <li>dokladny - nazwa i hash NBT,</li>
- *   <li>awaryjny - sama nazwa, tylko dla przedmiotow, ktore nie trafily w pierwszym.</li>
+ *   <li>exact - name and NBT hash,</li>
+ *   <li>fallback - name only, just for items that did not hit in the first pass.</li>
  * </ol>
- * Klucz jest kruchy (round-trip stacka przez NBT grobu potrafi znormalizowac tag i zmienic
- * hash), stad przebieg drugi. Kolejnosc przebiegow jest istotna: dopasowanie zachlanne,
- * przedmiot po przedmiocie, pozwalalo przedmiotowi z rozjechanym hashem zajac miejsce,
- * ktore pozniejszy przedmiot trafial dokladnie.
+ * The key is brittle (a round trip of a stack through the grave's NBT can normalise the tag and
+ * change the hash), hence the second pass. The order of the passes matters: greedy matching,
+ * item by item, let an item with a drifted hash take a seat that a later item hit exactly.
  *
- * <p>Ma to znaczenie w praktyce, bo Tombstone SCALA groby: druga smierc w promieniu 20 blokow
- * od nieodebranego grobu dorzuca przedmioty do niego i przestawia jego date smierci na
- * najnowsza. Taki grob wiaze sie tylko ze snapshotem ostatniej smierci, a zawiera tez
- * przedmioty z poprzedniej, ktorych ten snapshot nie opisuje.
+ * <p>This matters in practice, because Tombstone MERGES graves: a second death within 20 blocks
+ * of an uncollected grave adds items to it and moves its death date to the newest one. Such a
+ * grave binds only to the snapshot of the last death, yet it also contains items from the
+ * earlier one, which that snapshot does not describe.
  *
- * <p>Miejsca zajete u gracza nie biora udzialu w dopasowaniu wcale - inaczej przedmiot
- * dostalby miejsce, ktorego nie da sie uzyc, i nie sprobowalby zadnego innego.
+ * <p>Seats that are occupied on the player take no part in matching at all - otherwise an item
+ * would get a seat that cannot be used, and would not try any other.
  *
- * <p>{@link #NO_SEAT} niczego sam nie gwarantuje. Gwarancja "najgorszy przypadek = zachowanie
- * standardowe, nigdy zgubiony ani zdublowany przedmiot" pochodzi od WOLAJACEGO: musi
- * wstawiac wylacznie do pustego slotu i sprawdzic to ponownie tuz przed wstawieniem.
+ * <p>{@link #NO_SEAT} guarantees nothing by itself. The guarantee "worst case = standard
+ * behaviour, never a lost or duplicated item" comes from the CALLER: it must
+ * insert only into an empty slot and re-check that right before inserting.
  */
 public final class SlotPlan {
 
@@ -38,10 +37,10 @@ public final class SlotPlan {
     }
 
     /**
-     * @param snapshot  rozsadzenie z chwili smierci
-     * @param graveKeys klucz kazdego slotu grobu, w kolejnosci grobu; null = slot pusty
-     * @param seatFree  czy miejsce u gracza jest wolne; zajete nie biora udzialu w dopasowaniu
-     * @return seats[i] = miejsce dla graveKeys.get(i), albo {@link #NO_SEAT}
+     * @param snapshot  the seating arrangement from the moment of death
+     * @param graveKeys the key of each grave slot, in grave order; null = empty slot
+     * @param seatFree  whether the seat is free on the player; occupied ones take no part in matching
+     * @return seats[i] = the seat for graveKeys.get(i), or {@link #NO_SEAT}
      */
     public static int[] assign(SlotSnapshot snapshot, List<ItemKey> graveKeys, IntPredicate seatFree) {
         List<SlotEntry> free = new ArrayList<SlotEntry>();

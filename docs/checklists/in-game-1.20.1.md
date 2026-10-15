@@ -1,62 +1,62 @@
-# Weryfikacja w grze — tombtweaks 0.2.0
+# In-game verification — tombtweaks 0.2.0
 
-Rób to na **zreobfuskowanym jarze z `build/libs/` wrzuconym do prawdziwej instancji** (Forge 47 + Tombstone 9.1.4), nie w `./gradlew runClient`. Dev używa nazw oficjalnych i ukrywa dokładnie ten błąd (brak refmapy), który jest dla tego moda najgroźniejszy.
+Do this on the **reobfuscated jar from `build/libs/` dropped into a real instance** (Forge 47 + Tombstone 9.1.4), not in `./gradlew runClient`. Dev uses official names and hides exactly the bug (a missing refmap) that is the most dangerous one for this mod.
 
-Zaznaczaj wynik obok każdego punktu. Wszystko, co wypadnie inaczej niż „Oczekiwane", to materiał na poprawkę.
+Mark the result next to each item. Anything that comes out different from "Expected" is material for a fix.
 
-## 0. Start
+## 0. Startup
 
-- [ ] Gra wstaje, w modliście `tombtweaks` z wersją `0.2.0`.
-- [ ] W logu linia `[TombTweaks] 0.2.0 loading`.
-- [ ] W logu **pięć** linii `Mixing … from mixins.tombtweaks.json into …` — dla `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave`, `DeathHandler` i `TombstoneEnchantment`. Mixiny ładują się leniwie: linia pojawia się dopiero przy pierwszym załadowaniu klasy-celu (np. po postawieniu grobu / użyciu księgi), więc jej brak przed tym momentem nie jest błędem.
-- [ ] **Brak** w logu: `InvalidInjectionException`, `could not find any targets`, `Reference map 'tombtweaks.refmap.json' … could not be read`.
-- [ ] Powstał `config/tombtweaks-common.toml` z trzema tabelami `[restore]`, `[decay]`, `[cooldown]`; `decay.enabled = false`, cztery listy ochrony puste, `cooldown.books` z dwoma wpisami po 6 min.
+- [ ] The game starts, `tombtweaks` appears in the mod list with version `0.2.0`.
+- [ ] The log has the line `[TombTweaks] 0.2.0 loading`.
+- [ ] The log has **five** lines `Mixing … from mixins.tombtweaks.json into …` — for `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave`, `DeathHandler` and `TombstoneEnchantment`. Mixins load lazily: the line only appears when the target class is first loaded (e.g. after placing a grave / using a book), so its absence before that moment is not an error.
+- [ ] The log has **none** of: `InvalidInjectionException`, `could not find any targets`, `Reference map 'tombtweaks.refmap.json' … could not be read`.
+- [ ] `config/tombtweaks-common.toml` was created with three tables `[restore]`, `[decay]`, `[cooldown]`; `decay.enabled = false`, the four protection lists empty, `cooldown.books` with two entries of 6 min each.
 
 ## 1. Restore
 
-Ustaw `restore.debugLogging = true`, `/gamerule keepInventory false`.
+Set `restore.debugLogging = true`, `/gamerule keepInventory false`.
 
-- [ ] Charakterystyczny układ (miecz w slocie 2, chleb w 9, coś w offhandzie, pełny pancerz, kilka rzeczy w głównym ekwipunku, jeden pusty slot w środku hotbara). `/kill`. W logu `recorded N seats`.
-- [ ] Odzyskaj grób. **Oczekiwane:** wszystko na swoich miejscach, pancerz założony, offhand na miejscu, pusty slot dalej pusty. W logu `seated X of N`.
-- [ ] Zginij, po respawnie podnieś coś na slot, na którym coś leżało przed śmiercią, odzyskaj grób. **Oczekiwane:** zajęty slot pominięty, ten przedmiot trafia gdzie indziej (ścieżka Tombstone'a), nic nie ginie, nic się nie dubluje.
-- [ ] Zginij dwa razy w promieniu 20 bloków, nie odbierając grobu (scalenie). **Oczekiwane:** przedmioty z ostatniej śmierci na swoich miejscach, z pierwszej — ścieżką standardową, nic nie ginie.
-- [ ] Drugi gracz (albo drugie konto) otwiera Twój grób kluczem. **Oczekiwane:** standardowe zachowanie Tombstone'a, bez rozsadzania.
-- [ ] `restore.enabled = false` → zachowanie standardowe. `keepInventory true` → brak `recorded` w logu.
-- [ ] **Reverse inventory sorting:** w ustawieniach Tombstone'a sprawdź wartość domyślną, potem włącz i powtórz pierwszy test. Wynik wpisz do README (sekcja „Znane ograniczenia").
+- [ ] A distinctive layout (a sword in slot 2, bread in 9, something in the offhand, full armour, a few things in the main inventory, one empty slot in the middle of the hotbar). `/kill`. The log has `recorded N seats`.
+- [ ] Recover the grave. **Expected:** everything in its place, armour equipped, offhand in place, the empty slot still empty. The log has `seated X of N`.
+- [ ] Die, after respawning pick something up into a slot that held something before death, recover the grave. **Expected:** the occupied slot is skipped, that item goes elsewhere (the Tombstone path), nothing is lost, nothing is duplicated.
+- [ ] Die twice within 20 blocks without collecting the grave (merge). **Expected:** items from the latest death in their places, from the first one — via the standard path, nothing is lost.
+- [ ] A second player (or a second account) opens your grave with a key. **Expected:** standard Tombstone behaviour, no seating.
+- [ ] `restore.enabled = false` → standard behaviour. `keepInventory true` → no `recorded` in the log.
+- [ ] **Reverse inventory sorting:** check the default value in Tombstone's settings, then enable it and repeat the first test. Put the result in the README (the "Known limitations" section).
 
 ## 2. Decay
 
-Ustaw `decay.enabled = true`, `startTicks = 100`, `intervalTicks = 40`.
+Set `decay.enabled = true`, `startTicks = 100`, `intervalTicks = 40`.
 
-- [ ] Zginij z pełnym ekwipunkiem, stój przy grobie, nie otwieraj. **Oczekiwane:** po ~5 s co ~2 s jeden stack wypada nad grobem.
-- [ ] Dodaj `"minecraft:diamond_sword"` do `protectedItems`, powtórz. **Oczekiwane:** miecz zostaje do końca; przy `protectedNeverDecay = true` zostaje na zawsze, przy `false` wypada jako ostatni.
-- [ ] 🚨 **Restart w trakcie rozkładu:** niech wypadną 2–3 przedmioty, od razu zatrzymaj serwer (single player: wyjdź do menu), wczytaj świat. **Oczekiwane:** wyrzucone przedmioty leżą na ziemi i **nie ma ich z powrotem w grobie**. (To jest duplikacja, przed którą chroni `setChanged()`.)
-- [ ] Po wczytaniu rozkład kontynuuje od miejsca, w którym stanął.
-- [ ] Historia: z właścicielem online w jego danych gracza jest `tombtweaks_decay_history` z wpisami `item` + `count` (nie `minecraft:air`!).
+- [ ] Die with a full inventory, stand by the grave, do not open it. **Expected:** after ~5 s, one stack drops above the grave every ~2 s.
+- [ ] Add `"minecraft:diamond_sword"` to `protectedItems`, repeat. **Expected:** the sword stays to the end; with `protectedNeverDecay = true` it stays forever, with `false` it drops last.
+- [ ] 🚨 **Restart in the middle of decay:** let 2–3 items drop, stop the server immediately (single player: quit to the menu), load the world. **Expected:** the dropped items lie on the ground and are **not back in the grave**. (This is the duplication that `setChanged()` protects against.)
+- [ ] After loading, decay continues from where it stopped.
+- [ ] History: with the owner online, their player data contains `tombtweaks_decay_history` with entries of `item` + `count` (not `minecraft:air`!).
 
 ## 3. Cooldown
 
-- [ ] Book of Disenchantment na ozdobnym grobie z duszą — działa.
-- [ ] Od razu druga księga tego samego typu — odmowa, na pasku akcji „This book is still recovering — N s left." (Tombstone dorzuca swój komunikat w czacie — to znane.)
-- [ ] **Stos złożony z jednej księgi** — cooldown też startuje.
-- [ ] Wyjście do menu i powrót — cooldown trwa dalej. Śmierć — cooldown trwa dalej.
-- [ ] `books = ["tombstone:book_of_disenchantment;0"]` — cooldown znika od razu, bez restartu.
+- [ ] Book of Disenchantment on a decorative grave with a soul — works.
+- [ ] Immediately a second book of the same type — refused, the action bar says "This book is still recovering — N s left." (Tombstone adds its own message in chat — that is known.)
+- [ ] **A stack consisting of a single book** — the cooldown starts too.
+- [ ] Quit to the menu and come back — the cooldown keeps running. Death — the cooldown keeps running.
+- [ ] `books = ["tombstone:book_of_disenchantment;0"]` — the cooldown disappears immediately, without a restart.
 
-## 3a. Klucze do grobu (0.2.0)
+## 3a. Grave keys (0.2.0)
 
-- [ ] Domyślnie (`graveKeys.survivesDeath = true`): zginij z kluczem do starego grobu w ekwipunku — po respawnie klucz dalej jest przy Tobie (zachowanie Tombstone'a).
-- [ ] `survivesDeath = false`, powtórz. **Oczekiwane:** stary klucz leży w **nowym** grobie, a klucz do nowego grobu dostajesz jak zawsze.
-- [ ] To samo z kluczem, na który wcześniej nałożono Soulbound (np. przy `true`). **Oczekiwane:** przy `false` też trafia do grobu.
-- [ ] Kowadło: klucz + księga z Soulboundem przy `false` — brak wyniku. Przy `true` — działa jak w Tombstonie.
-- [ ] W logu linia `Mixing MixinDeathHandlerKeys … into ovh.corail.tombstone.helper.DeathHandler` i `Mixing MixinTombstoneEnchantment … into ovh.corail.tombstone.enchantment.TombstoneEnchantment`.
+- [ ] By default (`graveKeys.survivesDeath = true`): die with a key to an old grave in the inventory — after respawning the key is still with you (Tombstone's behaviour).
+- [ ] `survivesDeath = false`, repeat. **Expected:** the old key lies in the **new** grave, and you get the key to the new grave as always.
+- [ ] The same with a key that previously had Soulbound applied (e.g. under `true`). **Expected:** under `false` it goes into the grave too.
+- [ ] Anvil: a key + a book with Soulbound under `false` — no result. Under `true` — works as in Tombstone.
+- [ ] The log has the line `Mixing MixinDeathHandlerKeys … into ovh.corail.tombstone.helper.DeathHandler` and `Mixing MixinTombstoneEnchantment … into ovh.corail.tombstone.enchantment.TombstoneEnchantment`.
 
-## 3b. Wyłączone enchanty Tombstone'a (0.2.0)
+## 3b. Tombstone's disabled enchantments (0.2.0)
 
-- [ ] W configu Tombstone'a wyłącz Soulbound (`enableEnchantmentSoulbound = false`).
-- [ ] Wygeneruj dużo lootu z księgami `enchant_randomly` (np. `/loot spawn ~ ~ ~ loot minecraft:chests/stronghold_library` kilkadziesiąt razy). **Oczekiwane:** żadna księga z Soulboundem.
-- [ ] Nowi bibliotekarze (reroll handlu kilkadziesiąt razy). **Oczekiwane:** żadnej księgi z Soulboundem w ofercie.
-- [ ] Kontrola: włącz Soulbound z powrotem — księgi z nim znów się pojawiają (poprawka nie wycina włączonych enchantów).
+- [ ] In Tombstone's config, disable Soulbound (`enableEnchantmentSoulbound = false`).
+- [ ] Generate a lot of loot with `enchant_randomly` books (e.g. `/loot spawn ~ ~ ~ loot minecraft:chests/stronghold_library` several dozen times). **Expected:** no book with Soulbound.
+- [ ] New librarians (reroll the trades several dozen times). **Expected:** no book with Soulbound among the offers.
+- [ ] Control: enable Soulbound again — books with it show up again (the fix does not cut out enabled enchantments).
 
-## 4. Serwer dedykowany
+## 4. Dedicated server
 
-- [ ] Ten sam jar na serwerze dedykowanym startuje bez błędów (statycznie sprawdzone: zero referencji do klas klienckich), a punkt 1 działa dla gracza na serwerze.
+- [ ] The same jar on a dedicated server starts without errors (checked statically: zero references to client classes), and item 1 works for a player on the server.

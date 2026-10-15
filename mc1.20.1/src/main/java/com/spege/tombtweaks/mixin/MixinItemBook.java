@@ -13,10 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ovh.corail.tombstone.item.ItemBook;
 
 /**
- * Blokada uzycia ksiegi w trakcie cooldownu.
+ * Blocks book use during the cooldown.
  *
- * <p>Siedzi na klasie bazowej wszystkich ksiag, wiec dziala niezaleznie od tego, skad
- * ktos ja zawola. remap = false: canEnchant to metoda Tombstone'a.
+ * <p>Sits on the base class of all books, so it works regardless of where
+ * someone calls it from. remap = false: canEnchant is a Tombstone method.
  */
 @Mixin(ItemBook.class)
 public class MixinItemBook {

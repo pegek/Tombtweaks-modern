@@ -3,17 +3,17 @@ package com.spege.tombtweaks.core;
 import java.util.Set;
 
 /**
- * Co core wie o jednym stacku. Implementowane w warstwie platform, zeby core
- * nie musial znac ItemStacka.
+ * What core knows about one stack. Implemented in the platform layer, so that core
+ * does not have to know ItemStack.
  */
 public interface StackView {
 
-    /** Nazwa rejestrowa, np. "minecraft:diamond_sword". Nigdy null. */
+    /** Registry name, e.g. "minecraft:diamond_sword". Never null. */
     String itemId();
 
-    /** Nazwy rejestrowe enchantow stacka. Pusty zbior gdy brak. */
+    /** Registry names of the stack's enchantments. An empty set when there are none. */
     Set<String> enchantmentIds();
 
-    /** Wartosc stringowego klucza NBT najwyzszego poziomu, albo null gdy go nie ma. */
+    /** Value of a top-level string NBT key, or null when it is absent. */
     String nbtString(String key);
 }

@@ -9,18 +9,20 @@ import ovh.corail.tombstone.helper.DeathHandler;
 import ovh.corail.tombstone.helper.Helper;
 
 /**
- * Grave keys survive death = false: noszony klucz traci status soulbound przy smierci.
+ * Grave keys survive death = false: a carried key loses its soulbound status on death.
  *
- * <p>{@code storeSoulboundsOnBody} przechodzi po dropach i kazdy, dla ktorego
- * {@code Helper.isSoulbound} odpowiada true, wyjmuje z nich - klucze do {@code tb_key_stacks},
- * reszte do {@code tb_soulbound_stacks} - zeby wrocily po respawnie. Dla klucza odpowiedz jest
- * zawsze true. Odpowiedz false zostawia klucz w dropach, wiec trafia do nowego grobu.
+ * <p>{@code storeSoulboundsOnBody} walks over the drops and every one for which
+ * {@code Helper.isSoulbound} answers true it takes out of them - keys into {@code tb_key_stacks},
+ * the rest into {@code tb_soulbound_stacks} - so that they come back after respawn. For a key
+ * the answer is always true. An answer of false leaves the key in the drops, so it ends up in
+ * the new grave.
  *
- * <p>Jedyne inne wywolanie {@code isSoulbound} w Tombstonie jest w {@code ItemBookOfSoulbound},
- * wiec ten redirect jest cala decyzja przy smierci i nie rusza niczego innego. Klucz do grobu,
- * ktory wlasnie powstaje, Tombstone wydaje osobno, w {@code handleLoot}.
+ * <p>The only other call of {@code isSoulbound} in Tombstone is in {@code ItemBookOfSoulbound},
+ * so this redirect is the whole decision at death and touches nothing else. The key to the grave
+ * being created right now is issued by Tombstone separately, in {@code handleLoot}.
  *
- * <p>remap = false w obu miejscach: cel i wywolanie to czlonkowie Tombstone'a, nie Minecrafta.
+ * <p>remap = false in both places: the target and the call are Tombstone members, not
+ * Minecraft's.
  */
 @Mixin(DeathHandler.class)
 public class MixinDeathHandlerKeys {

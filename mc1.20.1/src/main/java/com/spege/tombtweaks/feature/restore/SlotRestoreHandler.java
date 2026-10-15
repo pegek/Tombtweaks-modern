@@ -20,25 +20,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Odklada zawartosc odzyskanego grobu tam, skad przyszla.
+ * Puts the contents of a recovered grave back where they came from.
  *
- * <p>Bez mixina. Tombstone odpala {@code RestoreInventoryEvent} w jedynym uzytecznym momencie:
- * po tym, jak chanceLossOnDeath wzial swoja czesc, i przed auto-equipem oraz cala reszta
- * rozdzialu. Dostajemy zywy ItemStackHandler grobu, wiec przedmiot wyjety tutaj po prostu
- * nie istnieje dla sciezki standardowej.
+ * <p>No mixin. Tombstone fires {@code RestoreInventoryEvent} at the only useful moment:
+ * after chanceLossOnDeath has taken its share, and before auto-equip and the rest of the
+ * distribution. We get the grave's live ItemStackHandler, so an item taken out here simply
+ * does not exist for the standard path.
  *
- * <p>Rozsadzenie liczy {@link SlotPlan#assign} dla calego grobu naraz (dwa przebiegi), bo
- * Tombstone scala groby: druga smierc w promieniu 20 blokow dorzuca przedmioty do starego
- * grobu, a ten wiaze sie tylko ze snapshotem ostatniej smierci.
+ * <p>The seating is computed by {@link SlotPlan#assign} for the whole grave at once (two passes),
+ * because Tombstone merges graves: a second death within 20 blocks adds items to the old
+ * grave, and that grave binds only to the snapshot of the last death.
  *
- * <p>Kazde wstawienie jest warunkowe na tym, ze docelowy slot jest pusty, sprawdzone ponownie
- * tuz przed wstawieniem. To ten warunek - nie {@code NO_SEAT} - gwarantuje, ze najgorszym
- * przypadkiem jest zachowanie standardowe, nigdy zgubiony ani zdublowany przedmiot.
+ * <p>Every insertion is conditional on the target slot being empty, checked again
+ * right before inserting. It is that condition - not {@code NO_SEAT} - that guarantees the worst
+ * case is standard behaviour, never a lost or duplicated item.
  */
 @Mod.EventBusSubscriber(modid = TombTweaks.MODID)
 public final class SlotRestoreHandler {
 
-    /** Ile ms moze dzielic capturedAt snapshotu od deathDate grobu. */
+    /** How many ms may separate the snapshot's capturedAt from the grave's deathDate. */
     private static final long TOLERANCE_MILLIS = 10_000L;
 
     private SlotRestoreHandler() {
@@ -53,11 +53,12 @@ public final class SlotRestoreHandler {
         if (!Config.INSTANCE.restoreEnabled.get()) {
             return;
         }
-        // Tombstone woła giveInventory takze dla gracza z kluczem do grobu i przy tomb raidingu,
-        // a getPlayer() to ten, kto OTWIERA grob. Snapshot jest per gracz, wiec dla obcego grobu
-        // wzielibysmy cudzy snapshot (np. dwoch graczy z jednego wybuchu, w 10 s tolerancji).
-        // Porownanie po nazwie, a nie przez BlockWritableGrave.isOwner: isOwner zwraca true
-        // dla grobu bez ownerId, a sciezka /tbrestoreinventory nie ma grobu w tym wymiarze.
+        // Tombstone calls giveInventory also for a player with a grave key and during tomb raiding,
+        // and getPlayer() is the one who OPENS the grave. The snapshot is per player, so for someone
+        // else's grave we would take someone else's snapshot (e.g. two players from one explosion,
+        // within the 10 s tolerance). Compared by name, not through BlockWritableGrave.isOwner:
+        // isOwner returns true for a grave without an ownerId, and the /tbrestoreinventory path has
+        // no grave in this dimension.
         if (!player.getGameProfile().getName().equals(event.getOwnerName())) {
             return;
         }
@@ -86,7 +87,7 @@ public final class SlotRestoreHandler {
         int seated = 0;
         for (int i = 0; i < seats.length; i++) {
             int seat = seats[i];
-            // Ponowne sprawdzenie to warunek niezmiennika, nie ostroznosc na zapas.
+            // The re-check is a condition of the invariant, not extra caution.
             if (seat == SlotPlan.NO_SEAT || !isSeatFree(inventory, seat)) {
                 continue;
             }
@@ -118,7 +119,7 @@ public final class SlotRestoreHandler {
         if (seat >= 0 && seat < inventory.items.size()) {
             return inventory.items.get(seat).isEmpty();
         }
-        return false; // np. zarezerwowana przestrzen Curios - nieobslugiwana w v1
+        return false; // e.g. the reserved Curios space - unsupported in v1
     }
 
     private static void place(Inventory inventory, int seat, ItemStack stack) {

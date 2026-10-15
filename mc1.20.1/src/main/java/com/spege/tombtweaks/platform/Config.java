@@ -8,13 +8,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Trzy kategorie, plik config/tombtweaks-common.toml.
+ * Three categories, file config/tombtweaks-common.toml.
  *
- * <p>Bez master switcha: przy trzech featurach z wlasnymi przelacznikami byl juz tylko
- * dodatkowym stanem, w ktorym da sie utknac.
+ * <p>No master switch: with three features that each have their own toggle it was only
+ * extra state to get stuck in.
  *
- * <p>Domyslne listy ochrony sa PUSTE. Te z 1.12.2 naleza do konkretnego packa,
- * a publiczny mod nie ma prawa ich zakladac.
+ * <p>The default protection lists are EMPTY. The ones from 1.12.2 belong to a specific pack,
+ * and a public mod has no right to assume them.
  */
 public final class Config {
 

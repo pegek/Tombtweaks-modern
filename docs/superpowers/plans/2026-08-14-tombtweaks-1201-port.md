@@ -1,67 +1,67 @@
-# TombTweaks 1.20.1 — plan implementacji rdzenia
+# TombTweaks 1.20.1 — core implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Zbudować `tombtweaks` na Minecraft 1.20.1 / Forge 47 / Corail Tombstone 9.1.4 z trzema featurami: exact-slot grave restore, grave item decay i cooldowny ksiąg.
+**Goal:** Build `tombtweaks` on Minecraft 1.20.1 / Forge 47 / Corail Tombstone 9.1.4 with three features: exact-slot grave restore, grave item decay and book cooldowns.
 
-**Architecture:** Nowe, osobne repo (wymuszone konfliktem wrapperów Gradle z `modDev`). Trzy warstwy w jednym source secie: `core` bez ani jednego typu Minecrafta i Tombstone'a (cała logika decyzyjna, testowana JUnitem na gołej JVM), `platform` (cienkie adaptery), `feature` (handlery i trzy mixiny, tak głupie, jak się da). Restore idzie na publicznym `RestoreInventoryEvent` bez mixina; decay i cooldowny po mixinach w Tombstone'a.
+**Architecture:** A new, separate repo (forced by a Gradle wrapper conflict with `modDev`). Three layers in one source set: `core` with not a single Minecraft or Tombstone type (all the decision logic, tested with JUnit on a bare JVM), `platform` (thin adapters), `feature` (handlers and three mixins, kept as dumb as possible). Restore runs on the public `RestoreInventoryEvent` with no mixin; decay and cooldowns go through mixins into Tombstone.
 
 **Tech Stack:** Gradle 8.x, ForgeGradle 6, MixinGradle 0.7, Java 17 (toolchain), mappings `official`, JUnit 5.
 
-**Spec:** `docs/superpowers/specs/2026-08-14-tombtweaks-1201-port-design.md` w repo `modDev`. Czytaj go przed startem — plan realizuje jego §4, §5, §6, §7.
+**Spec:** `docs/superpowers/specs/2026-08-14-tombtweaks-1201-port-design.md` (originally in the `modDev` repo, now in this one). Read it before starting — the plan implements its §4, §5, §6, §7.
 
 ---
 
-## Zasady obowiązujące w całym planie
+## Rules that apply throughout the plan
 
-1. **`core` musi być składniowo zgodny z Javą 8.** Bez rekordów, bez `var`, bez switch-expression, bez `List.of`. `core` jest jedyną rzeczą, która przy porcie na 1.16.5 (Java 8) przeniesie się kopiuj-wklej — składnia Javy 17 odbiera mu ten jedyny powód istnienia. Warstwy `platform` i `feature` mogą używać pełnej Javy 17.
-2. **`core` nie importuje niczego z `net.minecraft`, `net.minecraftforge` ani `ovh.corail`.** Task 2 stawia test, który to wymusza mechanicznie.
-3. **Refmapy są włączone.** To odwrotność zasady z `modDev/CLAUDE.md` — tam `-proc:none` wyłącza mixinowy annotation processor. Tutaj **nie wolno** dodawać `-proc:none`, bo refmapa jest potrzebna dla mixina celującego w metodę Minecrafta (`BlockBehaviour.use`).
-4. **Każdy mixin celujący w członka Tombstone'a ma `remap = false`.** Klasy Tombstone'a nie są obfuskowane, jego metody nie mają nazw SRG.
-5. **Commit po każdym zadaniu.** Zadania są tak dobrane, żeby każde zostawiało repo w stanie, który się kompiluje.
+1. **`core` must be syntactically Java 8 compatible.** No records, no `var`, no switch expressions, no `List.of`. `core` is the only thing that will carry over copy-paste when porting to 1.16.5 (Java 8) — Java 17 syntax takes away its only reason to exist. The `platform` and `feature` layers may use full Java 17.
+2. **`core` imports nothing from `net.minecraft`, `net.minecraftforge` or `ovh.corail`.** Task 2 adds a test that enforces this mechanically.
+3. **Refmaps are enabled.** This is the opposite of the rule in `modDev/CLAUDE.md` — there `-proc:none` disables the mixin annotation processor. Here you **must not** add `-proc:none`, because the refmap is needed for the mixin that targets a Minecraft method (`BlockBehaviour.use`).
+4. **Every mixin that targets a Tombstone member has `remap = false`.** Tombstone's classes are not obfuscated; its methods have no SRG names.
+5. **Commit after every task.** The tasks are chosen so that each one leaves the repo in a state that compiles.
 
 ---
 
-## Struktura plików
+## File structure
 
 ```
 E:\Isuth\tombtweaks-1201\
-├─ settings.gradle                     pluginManagement + nazwa projektu
+├─ settings.gradle                     pluginManagement + project name
 ├─ build.gradle                        FG6 + MixinGradle + toolchain 17 + JUnit 5
 ├─ gradle.properties
 ├─ gradle/wrapper/                     Gradle 8.x
-├─ libs/tombstone-1.20.1-9.1.4.jar     przeniesiony z modDev/TestPort
+├─ libs/tombstone-1.20.1-9.1.4.jar     moved from modDev/TestPort
 ├─ .gitignore
 ├─ README.md
 ├─ src/main/java/com/spege/tombtweaks/
-│  ├─ TombTweaks.java                  @Mod: rejestracja configu i handlerów
-│  ├─ core/                            ZERO typów MC/Forge/Tombstone, składnia Java 8
-│  │  ├─ ItemKey.java                  tożsamość stacka: id + hash NBT
-│  │  ├─ SlotEntry.java                jedno zapamiętane miejsce
-│  │  ├─ SlotSnapshot.java             plan miejsc z jednej śmierci + stałe kodowania slotów
-│  │  ├─ SlotPlan.java                 dopasowanie trójstopniowe, zużywa miejsca
-│  │  ├─ SnapshotStore.java            snapshoty oczekujące gracza: wiązanie i przycinanie
-│  │  ├─ StackView.java                interfejs: co core wie o stacku
-│  │  ├─ ProtectionRules.java          cztery listy ochrony
-│  │  ├─ DecaySchedule.java            kiedy grób traci następny przedmiot
-│  │  ├─ DecayVictim.java              który slot idzie pod nóż
-│  │  ├─ CooldownRules.java            parser configu "id;minuty"
-│  │  └─ Cooldown.java                 arytmetyka pozostałego czasu
+│  ├─ TombTweaks.java                  @Mod: registers config and handlers
+│  ├─ core/                            ZERO MC/Forge/Tombstone types, Java 8 syntax
+│  │  ├─ ItemKey.java                  stack identity: id + NBT hash
+│  │  ├─ SlotEntry.java                one remembered seat
+│  │  ├─ SlotSnapshot.java             slot plan from one death + slot encoding constants
+│  │  ├─ SlotPlan.java                 three-tier matching, consumes seats
+│  │  ├─ SnapshotStore.java            a player's pending snapshots: binding and pruning
+│  │  ├─ StackView.java                interface: what core knows about a stack
+│  │  ├─ ProtectionRules.java          four protection lists
+│  │  ├─ DecaySchedule.java            when a grave loses its next item
+│  │  ├─ DecayVictim.java              which slot goes under the knife
+│  │  ├─ CooldownRules.java            parser for the "id;minutes" config
+│  │  └─ Cooldown.java                 remaining-time arithmetic
 │  ├─ platform/
-│  │  ├─ Config.java                   ForgeConfigSpec, trzy kategorie
+│  │  ├─ Config.java                   ForgeConfigSpec, three categories
 │  │  ├─ StackViews.java               ItemStack -> ItemKey / StackView
-│  │  ├─ PlayerData.java               dostęp do PlayerPersisted
+│  │  ├─ PlayerData.java               access to PlayerPersisted
 │  │  └─ SnapshotCodec.java            SnapshotStore <-> CompoundTag
 │  ├─ feature/
 │  │  ├─ restore/SnapshotCaptureHandler.java   LivingDeathEvent
 │  │  ├─ restore/SlotRestoreHandler.java       RestoreInventoryEvent
-│  │  ├─ decay/GraveDecayService.java          logika jednego ticku grobu
-│  │  ├─ decay/DecayHistory.java               zapis historii po UUID
-│  │  └─ cooldown/BookCooldownService.java     odczyt/zapis cooldownu
+│  │  ├─ decay/GraveDecayService.java          logic of one grave tick
+│  │  ├─ decay/DecayHistory.java               history record keyed by UUID
+│  │  └─ cooldown/BookCooldownService.java     cooldown read/write
 │  └─ mixin/
 │     ├─ MixinBlockEntityPlayerGrave.java      HEAD serverTick -> decay
-│     ├─ MixinItemBook.java                    HEAD canEnchant -> blokada
-│     └─ MixinBlockDecorativeGrave.java        REDIRECT setEnchant -> start cooldownu
+│     ├─ MixinItemBook.java                    HEAD canEnchant -> block
+│     └─ MixinBlockDecorativeGrave.java        REDIRECT setEnchant -> cooldown start
 ├─ src/main/resources/
 │  ├─ META-INF/mods.toml
 │  ├─ mixins.tombtweaks.json
@@ -79,7 +79,7 @@ E:\Isuth\tombtweaks-1201\
 
 ---
 
-## Task 1: Bootstrap repozytorium i build
+## Task 1: Repository bootstrap and build
 
 **Files:**
 - Create: `E:\Isuth\tombtweaks-1201\settings.gradle`
@@ -91,9 +91,9 @@ E:\Isuth\tombtweaks-1201\
 - Create: `E:\Isuth\tombtweaks-1201\src\main\resources\pack.mcmeta`
 - Move: `E:\Isuth\modDev\TestPort\tombstone-1.20.1-9.1.4.jar` → `E:\Isuth\tombtweaks-1201\libs\`
 
-> **Uwaga o JDK:** na tej maszynie są JDK 8, 18, 21 i 24 — **nie ma 17**, którego wymaga Forge 47. Dlatego blok `toolchain` w `build.gradle` nie jest ozdobą: Gradle sam pobierze JDK 17 przez foojay resolver. Nie próbuj budować pod 21 ani 24.
+> **Note on the JDK:** this machine has JDK 8, 18, 21 and 24 — **no 17**, which Forge 47 requires. That is why the `toolchain` block in `build.gradle` is not decoration: Gradle will download JDK 17 itself via the foojay resolver. Do not try to build under 21 or 24.
 
-- [ ] **Step 1: Załóż repo i przenieś jar Tombstone'a**
+- [ ] **Step 1: Create the repo and move the Tombstone jar**
 
 ```bash
 mkdir -p /e/Isuth/tombtweaks-1201/libs
@@ -101,17 +101,17 @@ cd /e/Isuth/tombtweaks-1201 && git init
 mv /e/Isuth/modDev/TestPort/tombstone-1.20.1-9.1.4.jar /e/Isuth/tombtweaks-1201/libs/
 ```
 
-- [ ] **Step 2: Wygeneruj wrapper Gradle 8.7**
+- [ ] **Step 2: Generate the Gradle 8.7 wrapper**
 
 ```bash
 cd /e/Isuth/tombtweaks-1201 && gradle wrapper --gradle-version 8.7
 ```
 
-Jeśli w PATH nie ma `gradle`, skopiuj katalog `gradle/wrapper` i `gradlew*` z dowolnego projektu na Gradle 8 i podmień `distributionUrl` na `gradle-8.7-bin.zip`.
+If `gradle` is not on PATH, copy the `gradle/wrapper` directory and `gradlew*` from any Gradle 8 project and change `distributionUrl` to `gradle-8.7-bin.zip`.
 
-Expected: powstaje `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.properties` z `gradle-8.7-bin.zip`.
+Expected: `gradlew`, `gradlew.bat` and `gradle/wrapper/gradle-wrapper.properties` with `gradle-8.7-bin.zip` appear.
 
-- [ ] **Step 3: Napisz `settings.gradle`**
+- [ ] **Step 3: Write `settings.gradle`**
 
 ```groovy
 pluginManagement {
@@ -123,21 +123,21 @@ pluginManagement {
 }
 
 plugins {
-    // Pozwala Gradle pobrać JDK 17 samodzielnie. Na tej maszynie 17 nie ma zainstalowanej.
+    // Lets Gradle download JDK 17 by itself. 17 is not installed on this machine.
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
 }
 
 rootProject.name = 'tombtweaks'
 ```
 
-- [ ] **Step 4: Napisz `gradle.properties`**
+- [ ] **Step 4: Write `gradle.properties`**
 
 ```properties
 org.gradle.jvmargs=-Xmx3G
 org.gradle.daemon=false
 ```
 
-- [ ] **Step 5: Napisz `build.gradle`**
+- [ ] **Step 5: Write `build.gradle`**
 
 ```groovy
 plugins {
@@ -150,8 +150,8 @@ version = '0.1.0'
 group   = 'com.spege.tombtweaks'
 base { archivesName = 'tombtweaks-1.20.1' }
 
-// NIE dodawaj -proc:none. Mixinowy annotation processor musi działać, bo
-// MixinBlockDecorativeGrave celuje w metode Minecrafta i potrzebuje refmapy.
+// Do NOT add -proc:none. The mixin annotation processor has to run, because
+// MixinBlockDecorativeGrave targets a Minecraft method and needs a refmap.
 java {
     toolchain { languageVersion = JavaLanguageVersion.of(17) }
 }
@@ -186,14 +186,14 @@ repositories {
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.2.20'
 
-    // Tombstone: deobf jest konieczny, bo referencje do MC w jego bajtkodzie sa SRG-owe.
+    // Tombstone: deobf is required, because the MC references in its bytecode are SRG.
     implementation fg.deobf(files('libs/tombstone-1.20.1-9.1.4.jar'))
-    // ^ BLAD PLANU: fg.deobf(files(...)) to skladnia FG3, na FG6 cicho nic nie robi.
-    //   W repo: maven CurseMaven + fg.deobf('curse.maven:corail-tombstone-243707:8606942').
+    // ^ PLAN ERROR: fg.deobf(files(...)) is FG3 syntax, on FG6 it silently does nothing.
+    //   In the repo: maven CurseMaven + fg.deobf('curse.maven:corail-tombstone-243707:8606942').
 
-    // BRAKOWALO W PLANIE (wykryte 2026-10-02 po Taskach 12-13): MixinGradle 0.7 NIE dodaje
-    // procesora adnotacji sam. Bez tej linii jar nie ma refmapy, a redirect na `use`
-    // wywala gre w prawdziwej instancji (runClient tego nie pokaze).
+    // MISSING FROM THE PLAN (found 2026-10-02 after Tasks 12-13): MixinGradle 0.7 does NOT add
+    // the annotation processor by itself. Without this line the jar has no refmap, and the
+    // redirect on `use` breaks the game in a real instance (runClient will not show it).
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
@@ -224,7 +224,7 @@ jar {
 }
 ```
 
-- [ ] **Step 6: Napisz `.gitignore`**
+- [ ] **Step 6: Write `.gitignore`**
 
 ```gitignore
 build/
@@ -238,7 +238,7 @@ run/
 .settings/
 ```
 
-- [ ] **Step 7: Napisz `src/main/resources/META-INF/mods.toml`**
+- [ ] **Step 7: Write `src/main/resources/META-INF/mods.toml`**
 
 ```toml
 modLoader="javafml"
@@ -280,7 +280,7 @@ Tweaks for Corail Tombstone: items return to the slots they came from, unvisited
 config="mixins.tombtweaks.json"
 ```
 
-- [ ] **Step 8: Napisz `src/main/resources/pack.mcmeta`**
+- [ ] **Step 8: Write `src/main/resources/pack.mcmeta`**
 
 ```json
 {
@@ -291,7 +291,7 @@ config="mixins.tombtweaks.json"
 }
 ```
 
-- [ ] **Step 9: Napisz klasę `@Mod`**
+- [ ] **Step 9: Write the `@Mod` class**
 
 `src/main/java/com/spege/tombtweaks/TombTweaks.java`:
 
@@ -315,38 +315,38 @@ public final class TombTweaks {
 }
 ```
 
-- [ ] **Step 10: Zbuduj**
+- [ ] **Step 10: Build**
 
 Run: `./gradlew build`
-Expected: `BUILD SUCCESSFUL`, powstaje `build/libs/tombtweaks-1.20.1-0.1.0.jar`. Pierwsze uruchomienie ściąga JDK 17 i dekompiluje Minecrafta — potrwa kilkanaście minut.
+Expected: `BUILD SUCCESSFUL`, `build/libs/tombtweaks-1.20.1-0.1.0.jar` appears. The first run downloads JDK 17 and decompiles Minecraft — it will take a dozen or so minutes.
 
-- [ ] **Step 11: Odpal klienta i potwierdź, że Tombstone jest obecny**
+- [ ] **Step 11: Launch the client and confirm Tombstone is present**
 
 Run: `./gradlew runClient`
-Expected: klient wstaje; w logu jest `[TombTweaks] 0.1.0 loading` oraz wpis o załadowaniu moda `tombstone`. Zamknij klienta.
+Expected: the client starts; the log has `[TombTweaks] 0.1.0 loading` and an entry about loading the `tombstone` mod. Close the client.
 
 - [ ] **Step 12: Commit**
 
 ```bash
 cd /e/Isuth/tombtweaks-1201
 git add -A
-git commit -m "chore: bootstrap projektu tombtweaks na 1.20.1 (FG6, Java 17, JUnit 5)"
+git commit -m "chore: bootstrap the tombtweaks project on 1.20.1 (FG6, Java 17, JUnit 5)"
 ```
 
 ---
 
-## Task 2: Test pilnujący czystości `core`
+## Task 2: Test guarding the purity of `core`
 
-`core` ma sens tylko wtedy, gdy naprawdę nie zawiera typów obcych — inaczej port na 1.16.5 przestanie być kopiuj-wklej i nikt się o tym nie dowie, dopóki nie spróbuje. Test skanuje **skompilowane** klasy, nie źródła, więc łapie też użycie w pełni kwalifikowaną nazwą bez importu.
+`core` only makes sense if it really contains no foreign types — otherwise the port to 1.16.5 stops being copy-paste and nobody finds out until they try. The test scans the **compiled** classes, not the sources, so it also catches use of a fully qualified name without an import.
 
 **Files:**
 - Create: `src/test/java/com/spege/tombtweaks/core/CoreHasNoForeignTypesTest.java`
-- Create: `src/main/java/com/spege/tombtweaks/core/DecaySchedule.java` (minimalna klasa, żeby katalog `core` w ogóle powstał)
-- Create: `src/main/resources/mixins.tombtweaks.json` (z **pustą** listą `mixins`)
+- Create: `src/main/java/com/spege/tombtweaks/core/DecaySchedule.java` (a minimal class, just so that the `core` directory exists at all)
+- Create: `src/main/resources/mixins.tombtweaks.json` (with an **empty** `mixins` list)
 
-> **Poprawka do planu, wykryta po Tasku 1.** Jar deklaruje w manifeście `MixinConfigs: mixins.tombtweaks.json` (robi to plugin MixinGradle), a `mods.toml` ma `[[mixins]] config=...`. Dopóki ten plik nie istnieje, build przechodzi, ale **gra wywala się przy starcie**. To blokowałoby weryfikację w grze w Taskach 9 i 11, które żadnych mixinów nie potrzebują. Dlatego plik powstaje tutaj, z pustą listą `"mixins": []` — co jest w pełni poprawną konfiguracją — a Taski 12 i 13 tylko dopisują do niej wpisy.
+> **Correction to the plan, found after Task 1.** The jar declares `MixinConfigs: mixins.tombtweaks.json` in its manifest (the MixinGradle plugin does this), and `mods.toml` has `[[mixins]] config=...`. As long as that file does not exist, the build passes, but **the game crashes at startup**. That would block the in-game verification in Tasks 9 and 11, which need no mixins at all. So the file is created here, with an empty `"mixins": []` list — which is a perfectly valid configuration — and Tasks 12 and 13 only add entries to it.
 
-- [ ] **Step 1: Napisz test**
+- [ ] **Step 1: Write the test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -366,9 +366,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * Pilnuje jedynej wlasnosci, ktora czyni pakiet core wartym istnienia: braku typow obcych.
- * Skanuje skompilowane klasy, bo nazwy typow siedza w constant poolu jako zwykly tekst -
- * dzieki temu lapie tez uzycie w pelni kwalifikowana nazwa, bez importu.
+ * Guards the one property that makes the core package worth having: no foreign types.
+ * Scans the compiled classes, because type names sit in the constant pool as plain text -
+ * so it also catches use of a fully qualified name, without an import.
  */
 class CoreHasNoForeignTypesTest {
 
@@ -381,8 +381,8 @@ class CoreHasNoForeignTypesTest {
         Path root = Paths.get("build", "classes", "java", "main",
                               "com", "spege", "tombtweaks", "core");
         assertTrue(Files.isDirectory(root),
-                   "brak skompilowanych klas core pod " + root.toAbsolutePath()
-                   + " - uruchom test przez ./gradlew test, nie z IDE bez kompilacji");
+                   "no compiled core classes under " + root.toAbsolutePath()
+                   + " - run the test via ./gradlew test, not from the IDE without compiling");
 
         List<Path> classFiles;
         try (Stream<Path> files = Files.walk(root)) {
@@ -400,12 +400,12 @@ class CoreHasNoForeignTypesTest {
             }
         }
 
-        assertTrue(offenders.isEmpty(), "core nazywa typy obce: " + offenders);
+        assertTrue(offenders.isEmpty(), "core names foreign types: " + offenders);
     }
 
     @Test
     void theScanWouldActuallyCatchSomething() {
-        // Kontrola samego testu: gdyby warunek byl zawsze prawdziwy, test nic nie pilnuje.
+        // Check on the test itself: if the condition were always true, the test guards nothing.
         String pretendClassFile = "some bytes net/minecraft/world/item/ItemStack more bytes";
         boolean caught = false;
         for (String forbidden : FORBIDDEN) {
@@ -417,7 +417,7 @@ class CoreHasNoForeignTypesTest {
 }
 ```
 
-- [ ] **Step 2: Napisz `DecaySchedule`, żeby było co skanować**
+- [ ] **Step 2: Write `DecaySchedule`, so there is something to scan**
 
 `src/main/java/com/spege/tombtweaks/core/DecaySchedule.java`:
 
@@ -425,14 +425,14 @@ class CoreHasNoForeignTypesTest {
 package com.spege.tombtweaks.core;
 
 /**
- * Kiedy grob traci nastepny przedmiot.
+ * When a grave loses its next item.
  *
- * <p>Czysta funkcja licznika {@code countTicks} samego grobu, ktory Tombstone zapisuje do NBT
- * i wczytuje przy zaladowaniu chunka. Dzieki temu harmonogram nie potrzebuje wlasnego stanu
- * i przezywa restart serwera oraz wyladowanie chunka.
+ * <p>A pure function of the grave's own {@code countTicks} counter, which Tombstone writes to NBT
+ * and reads back when the chunk loads. Thanks to that the schedule needs no state of its own
+ * and survives a server restart and a chunk unload.
  *
- * <p>Uwaga na semantyke: {@code countTicks} rosnie tylko wtedy, gdy grob jest zaladowany,
- * wiec {@code startTicks} liczy czas ZALADOWANIA, nie czas zegarowy.
+ * <p>Mind the semantics: {@code countTicks} only grows while the grave is loaded,
+ * so {@code startTicks} counts LOADED time, not wall-clock time.
  */
 public final class DecaySchedule {
 
@@ -451,21 +451,21 @@ public final class DecaySchedule {
 }
 ```
 
-- [ ] **Step 3: Uruchom testy**
+- [ ] **Step 3: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 2 testy.
+Expected: PASS, 2 tests.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add -A
-git commit -m "test: straznik czystosci pakietu core + DecaySchedule"
+git commit -m "test: core purity guard + DecaySchedule"
 ```
 
 ---
 
-## Task 3: `core` — tożsamość stacka i plan miejsc
+## Task 3: `core` — stack identity and slot plan
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/core/ItemKey.java`
@@ -473,7 +473,7 @@ git commit -m "test: straznik czystosci pakietu core + DecaySchedule"
 - Create: `src/main/java/com/spege/tombtweaks/core/SlotSnapshot.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/SlotSnapshotTest.java`
 
-- [ ] **Step 1: Napisz failujący test**
+- [ ] **Step 1: Write the failing test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -487,7 +487,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SlotSnapshotTest {
 
     @Test
-    void itemKeyRoznicujePoNbt() {
+    void itemKeyDistinguishesByNbt() {
         assertEquals(new ItemKey("minecraft:diamond_sword", 7),
                      new ItemKey("minecraft:diamond_sword", 7));
         assertNotEquals(new ItemKey("minecraft:diamond_sword", 7),
@@ -497,23 +497,23 @@ class SlotSnapshotTest {
     }
 
     @Test
-    void pustyStackNieTrafiaDoSnapshotu() {
+    void emptyStackDoesNotEnterSnapshot() {
         SlotSnapshot snapshot = new SlotSnapshot(1000L);
         assertTrue(snapshot.isEmpty());
         assertEquals(0, snapshot.entries().size());
     }
 
     @Test
-    void kodowanieSlotowNieKoliduje() {
-        // Main 0-35 musi konczyc sie przed pancerzem, pancerz przed offhandem,
-        // a offhand przed zarezerwowana przestrzenia Curios.
+    void slotEncodingDoesNotCollide() {
+        // Main 0-35 must end before armor, armor before offhand,
+        // and offhand before the space reserved for Curios.
         assertTrue(35 < SlotSnapshot.ARMOR_BASE);
         assertTrue(SlotSnapshot.ARMOR_BASE + 3 < SlotSnapshot.OFFHAND_SLOT);
         assertTrue(SlotSnapshot.OFFHAND_SLOT < SlotSnapshot.CURIOS_BASE);
     }
 
     @Test
-    void snapshotPamietaMiejsceIIlosc() {
+    void snapshotRemembersSeatAndCount() {
         SlotSnapshot snapshot = new SlotSnapshot(1234L);
         snapshot.add(4, new ItemKey("minecraft:bread", 0), 12);
         snapshot.add(SlotSnapshot.OFFHAND_SLOT, new ItemKey("minecraft:shield", 99), 1);
@@ -527,23 +527,23 @@ class SlotSnapshotTest {
 }
 ```
 
-- [ ] **Step 2: Uruchom test, potwierdź że nie kompiluje**
+- [ ] **Step 2: Run the test, confirm it does not compile**
 
 Run: `./gradlew test`
 Expected: FAIL — `cannot find symbol: class ItemKey`.
 
-- [ ] **Step 3: Napisz `ItemKey`**
+- [ ] **Step 3: Write `ItemKey`**
 
 ```java
 package com.spege.tombtweaks.core;
 
 /**
- * Tozsamosc stacka: tyle, zeby go rozpoznac przy powrocie z grobu, i ani grama wiecej.
+ * Stack identity: just enough to recognise it on its way back from the grave, and not an ounce more.
  *
- * <p>Na 1.12.2 kluczem bylo (nazwa, metadane, hash NBT). Na 1.20.1 metadanych nie ma,
- * a wytrzymalosc siedzi w NBT - stad para (nazwa, hash NBT) i stad tez to, ze dopasowanie
- * musi miec stopien awaryjny: serializacja stacka do grobu i z powrotem potrafi
- * znormalizowac tag, a wtedy hash sie zmienia. Patrz {@link SlotPlan}.
+ * <p>On 1.12.2 the key was (name, metadata, NBT hash). On 1.20.1 there is no metadata,
+ * and durability lives in NBT - hence the (name, NBT hash) pair, and hence also the fact that
+ * matching has to have a fallback tier: serialising a stack into the grave and back can
+ * normalise the tag, and then the hash changes. See {@link SlotPlan}.
  */
 public final class ItemKey {
 
@@ -590,12 +590,12 @@ public final class ItemKey {
 }
 ```
 
-- [ ] **Step 4: Napisz `SlotEntry`**
+- [ ] **Step 4: Write `SlotEntry`**
 
 ```java
 package com.spege.tombtweaks.core;
 
-/** Jedno zapamietane miejsce: co gdzie siedzialo w chwili smierci. */
+/** One remembered seat: what sat where at the moment of death. */
 public final class SlotEntry {
 
     private final int slot;
@@ -617,8 +617,8 @@ public final class SlotEntry {
     }
 
     /**
-     * Ilosc w chwili smierci. Zapisywana dla diagnostyki, NIGDY nie jest kryterium dopasowania:
-     * percentLossOnDeath zmniejsza stacki wewnatrz grobu, zanim ktokolwiek je zobaczy.
+     * The count at the moment of death. Stored for diagnostics, NEVER a matching criterion:
+     * percentLossOnDeath shrinks stacks inside the grave before anyone sees them.
      */
     public int count() {
         return count;
@@ -626,7 +626,7 @@ public final class SlotEntry {
 }
 ```
 
-- [ ] **Step 5: Napisz `SlotSnapshot`**
+- [ ] **Step 5: Write `SlotSnapshot`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -636,18 +636,18 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Plan miejsc z jednej smierci - nie kopia przedmiotow.
+ * The slot plan from one death - not a copy of the items.
  *
- * <p>Pelny zserializowany ekwipunek w danych gracza to dziesiatki kilobajtow przepisywane
- * przy kazdym autosave i, co gorsza, druga instancja prawdy o tym, co gracz posiadal.
- * Grob jest jedyna instancja prawdy; to jest wylacznie rozsadzenie gosci.
+ * <p>A full serialised inventory in the player data is tens of kilobytes rewritten
+ * on every autosave and, worse, a second instance of the truth about what the player owned.
+ * The grave is the only instance of the truth; this is purely the seating chart.
  */
 public final class SlotSnapshot {
 
-    /** Main inventory zachowuje wlasne indeksy 0-35. */
+    /** The main inventory keeps its own indices 0-35. */
     public static final int ARMOR_BASE = 100;
     public static final int OFFHAND_SLOT = 150;
-    /** Zarezerwowane pod Curios. Nieuzywane w v1. */
+    /** Reserved for Curios. Unused in v1. */
     public static final int CURIOS_BASE = 200;
 
     private final long capturedAt;
@@ -666,7 +666,7 @@ public final class SlotSnapshot {
         entries.add(new SlotEntry(slot, key, count));
     }
 
-    /** Zegar scienny w milisekundach - ta sama skala co deathDate grobu. */
+    /** Wall clock in milliseconds - the same scale as the grave's deathDate. */
     public long capturedAt() {
         return capturedAt;
     }
@@ -681,29 +681,29 @@ public final class SlotSnapshot {
 }
 ```
 
-- [ ] **Step 6: Uruchom testy**
+- [ ] **Step 6: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 6 testów.
+Expected: PASS, 6 tests.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(core): ItemKey, SlotEntry i SlotSnapshot - plan miejsc zamiast kopii ekwipunku"
+git commit -m "feat(core): ItemKey, SlotEntry and SlotSnapshot - a slot plan instead of an inventory copy"
 ```
 
 ---
 
-## Task 4: `core` — dopasowanie trójstopniowe
+## Task 4: `core` — three-tier matching
 
-> **Zastąpione po recenzji `core` (2026-10-02).** Poniższe `claimSeat` dopasowywało zachłannie, przedmiot po przedmiocie, i przedmiot z rozjechanym hashem NBT mógł zająć miejsce, które późniejszy przedmiot trafiał dokładnie. Realny wyzwalacz w Tombstone 9.1.4: druga śmierć w promieniu 20 bloków od nieodebranego grobu **scala się z nim** (`findExistingGraveLocation` + `resetDeathTime()`), więc grób zawiera przedmioty z dwóch śmierci, a wiąże się tylko ze snapshotem ostatniej. Obowiązujące API to statyczne `SlotPlan.assign(snapshot, graveKeys, seatFree)` — dwa przebiegi po całym grobie (najpierw wszystkie dopasowania dokładne, potem awaryjne), a zajęte sloty gracza nie biorą udziału w dopasowaniu. Task 11 jest już przepisany pod nowe API. Kod poniżej zostaje jako zapis historyczny.
+> **Superseded after the `core` review (2026-10-02).** The `claimSeat` below matched greedily, item by item, and an item with a drifted NBT hash could take a seat that a later item would have hit exactly. The real trigger in Tombstone 9.1.4: a second death within 20 blocks of an unclaimed grave **merges into it** (`findExistingGraveLocation` + `resetDeathTime()`), so the grave contains items from two deaths, while it binds only to the snapshot of the last one. The API now in force is the static `SlotPlan.assign(snapshot, graveKeys, seatFree)` — two passes over the whole grave (first all exact matches, then the fallback ones), and occupied player slots do not take part in matching. Task 11 has already been rewritten for the new API. The code below stays as a historical record.
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/core/SlotPlan.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/SlotPlanTest.java`
 
-- [ ] **Step 1: Napisz failujący test**
+- [ ] **Step 1: Write the failing test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -724,7 +724,7 @@ class SlotPlanTest {
     }
 
     @Test
-    void trafienieDokladne() {
+    void exactHit() {
         SlotPlan plan = new SlotPlan(snapshotWith(
                 new SlotEntry(3, new ItemKey("minecraft:diamond_sword", 42), 1)));
 
@@ -732,8 +732,8 @@ class SlotPlanTest {
     }
 
     @Test
-    void spadekNaDopasowaniePoNazwieGdyNbtSieRozjechalo() {
-        // Round-trip przez NBT grobu potrafi znormalizowac tag i zmienic hash.
+    void fallsBackToNameMatchWhenNbtDrifted() {
+        // A round trip through the grave's NBT can normalise the tag and change the hash.
         SlotPlan plan = new SlotPlan(snapshotWith(
                 new SlotEntry(7, new ItemKey("minecraft:diamond_sword", 42), 1)));
 
@@ -741,7 +741,7 @@ class SlotPlanTest {
     }
 
     @Test
-    void dokladneMaPierwszenstwoPrzedNazwa() {
+    void exactTakesPrecedenceOverName() {
         SlotPlan plan = new SlotPlan(snapshotWith(
                 new SlotEntry(1, new ItemKey("minecraft:diamond_sword", 11), 1),
                 new SlotEntry(2, new ItemKey("minecraft:diamond_sword", 22), 1)));
@@ -751,7 +751,7 @@ class SlotPlanTest {
     }
 
     @Test
-    void dwaIdenticzneStackiDostajaDwaRozneMiejsca() {
+    void twoIdenticalStacksGetTwoDifferentSeats() {
         SlotPlan plan = new SlotPlan(snapshotWith(
                 new SlotEntry(4, new ItemKey("minecraft:bread", 0), 8),
                 new SlotEntry(9, new ItemKey("minecraft:bread", 0), 8)));
@@ -764,7 +764,7 @@ class SlotPlanTest {
     }
 
     @Test
-    void brakDopasowaniaToRezygnacja() {
+    void noMatchMeansGivingUp() {
         SlotPlan plan = new SlotPlan(snapshotWith(
                 new SlotEntry(4, new ItemKey("minecraft:bread", 0), 8)));
 
@@ -772,7 +772,7 @@ class SlotPlanTest {
     }
 
     @Test
-    void miejsceZuzywaSieRaz() {
+    void seatIsConsumedOnce() {
         SlotPlan plan = new SlotPlan(snapshotWith(
                 new SlotEntry(4, new ItemKey("minecraft:bread", 0), 8)));
 
@@ -782,12 +782,12 @@ class SlotPlanTest {
 }
 ```
 
-- [ ] **Step 2: Uruchom test, potwierdź że nie kompiluje**
+- [ ] **Step 2: Run the test, confirm it does not compile**
 
 Run: `./gradlew test`
 Expected: FAIL — `cannot find symbol: class SlotPlan`.
 
-- [ ] **Step 3: Napisz `SlotPlan`**
+- [ ] **Step 3: Write `SlotPlan`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -796,19 +796,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Snapshot wydawany na jeden grob. Kazde miejsce mozna zajac tylko raz.
+ * A snapshot issued per grave. Each seat can be taken only once.
  *
- * <p>Dopasowanie jest trojstopniowe, bo klucz (nazwa, hash NBT) jest krychy: stack idzie
- * do grobu przez serializacje do NBT i z powrotem, a round-trip potrafi tag znormalizowac.
+ * <p>Matching is three-tier, because the (name, NBT hash) key is brittle: a stack goes
+ * into the grave through serialisation to NBT and back, and the round trip can normalise the tag.
  *
  * <ol>
- *   <li>dokladne - nazwa i hash NBT,</li>
- *   <li>awaryjne - sama nazwa, pierwszy jeszcze niezajety wpis,</li>
- *   <li>rezygnacja - {@link #NO_SEAT}, przedmiot zostaje w grobie i idzie sciezka standardowa.</li>
+ *   <li>exact - name and NBT hash,</li>
+ *   <li>fallback - the name alone, the first entry not yet taken,</li>
+ *   <li>giving up - {@link #NO_SEAT}, the item stays in the grave and takes the standard path.</li>
  * </ol>
  *
- * <p>Stopien trzeci jest wazniejszy, niz wyglada: to on gwarantuje, ze najgorszym przypadkiem
- * calego featura jest dzisiejsze zachowanie Tombstone'a, nigdy zgubiony przedmiot.
+ * <p>The third tier is more important than it looks: it guarantees that the worst case
+ * of the whole feature is Tombstone's current behaviour, never a lost item.
  */
 public final class SlotPlan {
 
@@ -836,27 +836,27 @@ public final class SlotPlan {
 }
 ```
 
-- [ ] **Step 4: Uruchom testy**
+- [ ] **Step 4: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 12 testów.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(core): SlotPlan - dopasowanie trojstopniowe z rezygnacja jako stopniem trzecim"
+git commit -m "feat(core): SlotPlan - three-tier matching with giving up as the third tier"
 ```
 
 ---
 
-## Task 5: `core` — wiązanie snapshotu z grobem
+## Task 5: `core` — binding a snapshot to a grave
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/core/SnapshotStore.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/SnapshotStoreTest.java`
 
-- [ ] **Step 1: Napisz failujący test**
+- [ ] **Step 1: Write the failing test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -878,7 +878,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void wiazePoNajblizszymCzasie() {
+    void bindsByNearestTime() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(50_000L));
@@ -890,7 +890,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void zuzywaSnapshotWiecDrugiGrobDostajeSwoj() {
+    void consumesSnapshotSoSecondGraveGetsItsOwn() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(50_000L));
@@ -901,7 +901,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void pozaTolerancjaToBrakDopasowania() {
+    void outsideToleranceMeansNoMatch() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
 
@@ -909,7 +909,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void tolerancjaDzialaWObieStrony() {
+    void toleranceWorksBothWays() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(10_000L));
 
@@ -917,7 +917,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void przycinaPoLiczbie() {
+    void prunesByCount() {
         SnapshotStore store = new SnapshotStore();
         for (int i = 1; i <= 6; i++) {
             store.add(at(i * 1_000L));
@@ -926,13 +926,13 @@ class SnapshotStoreTest {
         store.prune(100_000L, 3, Long.MAX_VALUE);
 
         assertEquals(3, store.all().size());
-        // zostaja najmlodsze
+        // the youngest ones stay
         assertEquals(4_000L, store.all().get(0).capturedAt());
         assertEquals(6_000L, store.all().get(2).capturedAt());
     }
 
     @Test
-    void przycinaPoWieku() {
+    void prunesByAge() {
         SnapshotStore store = new SnapshotStore();
         store.add(at(1_000L));
         store.add(at(90_000L));
@@ -944,7 +944,7 @@ class SnapshotStoreTest {
     }
 
     @Test
-    void pustyMagazynNieWybucha() {
+    void emptyStoreDoesNotBlowUp() {
         SnapshotStore store = new SnapshotStore();
         store.prune(100_000L, 3, 1_000L);
         assertNull(store.claimNearest(0L, TOLERANCE));
@@ -953,12 +953,12 @@ class SnapshotStoreTest {
 }
 ```
 
-- [ ] **Step 2: Uruchom test, potwierdź że nie kompiluje**
+- [ ] **Step 2: Run the test, confirm it does not compile**
 
 Run: `./gradlew test`
 Expected: FAIL — `cannot find symbol: class SnapshotStore`.
 
-- [ ] **Step 3: Napisz `SnapshotStore`**
+- [ ] **Step 3: Write `SnapshotStore`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -968,15 +968,15 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Snapshoty oczekujace jednego gracza.
+ * One player's pending snapshots.
  *
- * <p>Snapshot powstaje przy smierci, czyli zanim grob istnieje - musi wiec zostac skojarzony
- * z konkretnym grobem dopiero przy odzyskiwaniu. Wiazanie idzie po czasie zegarowym:
- * {@code capturedAt} snapshotu przeciw {@code getOwnerDeathTime()} grobu, ktore Tombstone
- * ustawia z {@code System.currentTimeMillis()} - ta sama skala.
+ * <p>A snapshot is created at death, that is before the grave exists - so it can only be associated
+ * with a specific grave at recovery time. Binding goes by wall-clock time:
+ * the snapshot's {@code capturedAt} against the grave's {@code getOwnerDeathTime()}, which Tombstone
+ * sets from {@code System.currentTimeMillis()} - the same scale.
  *
- * <p>Dopasowany snapshot jest ZUZYWANY, zeby gracz z kilkoma nieodwiedzonymi grobami dostal
- * z kazdego jego wlasne rozsadzenie, a nie rozsadzenie z ostatniej smierci.
+ * <p>A matched snapshot is CONSUMED, so that a player with several unvisited graves gets
+ * each one's own seating chart, not the seating chart from the last death.
  */
 public final class SnapshotStore {
 
@@ -991,9 +991,9 @@ public final class SnapshotStore {
     }
 
     /**
-     * Najblizszy czasowo snapshot, usuniety z magazynu.
+     * The snapshot nearest in time, removed from the store.
      *
-     * @return null gdy nic nie miesci sie w tolerancji - wtedy sciezka standardowa
+     * @return null when nothing fits within the tolerance - then the standard path
      */
     public SlotSnapshot claimNearest(long graveDeathTime, long toleranceMillis) {
         int best = -1;
@@ -1009,8 +1009,8 @@ public final class SnapshotStore {
     }
 
     /**
-     * Przycina z dwoch stron: liczba sztuk i wiek. Bez tego jedna smierc bez powrotu po grob
-     * zostawialaby wpis na zawsze.
+     * Prunes from two sides: count and age. Without this, one death with no return to the grave
+     * would leave an entry behind forever.
      */
     public void prune(long nowMillis, int maxEntries, long maxAgeMillis) {
         for (int i = pending.size() - 1; i >= 0; i--) {
@@ -1031,28 +1031,28 @@ public final class SnapshotStore {
 }
 ```
 
-- [ ] **Step 4: Uruchom testy**
+- [ ] **Step 4: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 19 testów.
+Expected: PASS, 19 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(core): SnapshotStore - wiazanie po czasie zegarowym, zuzywanie i przycinanie"
+git commit -m "feat(core): SnapshotStore - binding by wall-clock time, consuming and pruning"
 ```
 
 ---
 
-## Task 6: `core` — cztery listy ochrony
+## Task 6: `core` — the four protection lists
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/core/StackView.java`
 - Create: `src/main/java/com/spege/tombtweaks/core/ProtectionRules.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/ProtectionRulesTest.java`
 
-- [ ] **Step 1: Napisz failujący test**
+- [ ] **Step 1: Write the failing test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1073,7 +1073,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProtectionRulesTest {
 
-    /** Atrapa stacka - core nie zna ItemStacka i nie ma o czym wiedziec. */
+    /** A stack stand-in - core does not know ItemStack and has nothing to know about it. */
     private static final class FakeStack implements StackView {
         private final String id;
         private final Set<String> enchants;
@@ -1099,13 +1099,13 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void pustaKonfiguracjaNieChroniNiczego() {
+    void emptyConfigProtectsNothing() {
         ProtectionRules rules = ProtectionRules.of(none(), none(), none(), none());
         assertFalse(rules.isProtected(new FakeStack("minecraft:diamond_sword")));
     }
 
     @Test
-    void pelnaNazwaChroniTylkoSiebie() {
+    void fullNameProtectsOnlyItself() {
         ProtectionRules rules = ProtectionRules.of(
                 Arrays.asList("minecraft:diamond_sword"), none(), none(), none());
 
@@ -1114,7 +1114,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void prefiksLapieCalaRodzine() {
+    void prefixCatchesWholeFamily() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), Arrays.asList("mymod:relic_"), none(), none());
 
@@ -1124,7 +1124,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void enchantChroniNiezaleznieOdItemu() {
+    void enchantmentProtectsRegardlessOfItem() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), none(), Arrays.asList("mymod:soulbound"), none());
 
@@ -1135,7 +1135,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void matcherNbtPorownujeWartosc() {
+    void nbtMatcherComparesValue() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), none(), none(), Arrays.asList("properties=ashen_legacy"));
 
@@ -1152,13 +1152,13 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void popsutyWpisNbtJestIgnorowanyANiefatalny() {
+    void malformedNbtEntryIsIgnoredNotFatal() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), none(), none(),
-                Arrays.asList("bez_rownosci", "=bez_klucza", "klucz=", "dobry=wpis"));
+                Arrays.asList("no_equals", "=no_key", "key=", "good=entry"));
 
         Map<String, String> matching = new HashMap<String, String>();
-        matching.put("dobry", "wpis");
+        matching.put("good", "entry");
 
         assertTrue(rules.isProtected(
                 new FakeStack("minecraft:stick", Collections.<String>emptySet(), matching)));
@@ -1166,7 +1166,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void bialeZnakiWKonfiguracjiSaWybaczane() {
+    void whitespaceInConfigIsForgiven() {
         ProtectionRules rules = ProtectionRules.of(
                 Arrays.asList("  minecraft:stick  ", "", "   "), none(), none(), none());
 
@@ -1175,12 +1175,12 @@ class ProtectionRulesTest {
 }
 ```
 
-- [ ] **Step 2: Uruchom test, potwierdź że nie kompiluje**
+- [ ] **Step 2: Run the test, confirm it does not compile**
 
 Run: `./gradlew test`
 Expected: FAIL — `cannot find symbol: class StackView`.
 
-- [ ] **Step 3: Napisz `StackView`**
+- [ ] **Step 3: Write `StackView`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1188,23 +1188,23 @@ package com.spege.tombtweaks.core;
 import java.util.Set;
 
 /**
- * Co core wie o jednym stacku. Implementowane w warstwie platform, zeby core
- * nie musial znac ItemStacka.
+ * What core knows about one stack. Implemented in the platform layer, so that core
+ * does not have to know ItemStack.
  */
 public interface StackView {
 
-    /** Nazwa rejestrowa, np. "minecraft:diamond_sword". Nigdy null. */
+    /** The registry name, e.g. "minecraft:diamond_sword". Never null. */
     String itemId();
 
-    /** Nazwy rejestrowe enchantow stacka. Pusty zbior gdy brak. */
+    /** The registry names of the stack's enchantments. An empty set when there are none. */
     Set<String> enchantmentIds();
 
-    /** Wartosc stringowego klucza NBT najwyzszego poziomu, albo null gdy go nie ma. */
+    /** The value of a top-level string NBT key, or null when it is absent. */
     String nbtString(String key);
 }
 ```
 
-- [ ] **Step 4: Napisz `ProtectionRules`**
+- [ ] **Step 4: Write `ProtectionRules`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1215,13 +1215,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Czego rozkladajacy sie grob nie ma prawa zjesc.
+ * What a decaying grave has no right to eat.
  *
- * <p>Cztery niezalezne reguly; stack jest chroniony, gdy pasuje KTORAKOLWIEK.
+ * <p>Four independent rules; a stack is protected when ANY of them matches.
  *
- * <p>Zasada, ktorej nie wolno zlamac: <b>pusta lista nie chroni niczego</b>. Odwrotna
- * interpretacja zamienilaby domyslna konfiguracje w grob, ktory nigdy nic nie traci,
- * czyli w feature wygladajacy na dzialajacy i nierobiacy nic.
+ * <p>A rule that must not be broken: <b>an empty list protects nothing</b>. The opposite
+ * interpretation would turn the default configuration into a grave that never loses anything,
+ * that is, into a feature that looks like it works and does nothing.
  */
 public final class ProtectionRules {
 
@@ -1268,7 +1268,7 @@ public final class ProtectionRules {
         for (String raw : nbtStrings) {
             int equals = raw.indexOf('=');
             if (equals <= 0 || equals == raw.length() - 1) {
-                continue; // popsuty wpis jest ignorowany, nigdy fatalny
+                continue; // a broken entry is ignored, never fatal
             }
             String key = raw.substring(0, equals).trim();
             String value = raw.substring(equals + 1).trim();
@@ -1310,28 +1310,28 @@ public final class ProtectionRules {
 }
 ```
 
-- [ ] **Step 5: Uruchom testy**
+- [ ] **Step 5: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 26 testów.
+Expected: PASS, 26 tests.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(core): ProtectionRules - cztery listy, pusta lista nie chroni niczego"
+git commit -m "feat(core): ProtectionRules - four lists, an empty list protects nothing"
 ```
 
 ---
 
-## Task 7: `core` — harmonogram i wybór ofiary
+## Task 7: `core` — schedule and victim selection
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/core/DecayVictim.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/DecayScheduleTest.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/DecayVictimTest.java`
 
-- [ ] **Step 1: Napisz test harmonogramu**
+- [ ] **Step 1: Write the schedule test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1348,18 +1348,18 @@ class DecayScheduleTest {
     private static final long INTERVAL = 1_200L;
 
     @Test
-    void nicPrzedProgiem() {
+    void nothingBeforeThreshold() {
         assertFalse(DecaySchedule.shouldDecay(0L, START, INTERVAL));
         assertFalse(DecaySchedule.shouldDecay(START - 1L, START, INTERVAL));
     }
 
     @Test
-    void pierwszeOdpalenieDokladnieNaProgu() {
+    void firstFiringExactlyAtThreshold() {
         assertTrue(DecaySchedule.shouldDecay(START, START, INTERVAL));
     }
 
     @Test
-    void dokladnieJednoOdpalenieNaInterwal() {
+    void exactlyOneFiringPerInterval() {
         int fired = 0;
         for (long tick = START; tick < START + 10L * INTERVAL; tick++) {
             if (DecaySchedule.shouldDecay(tick, START, INTERVAL)) {
@@ -1370,25 +1370,25 @@ class DecayScheduleTest {
     }
 
     @Test
-    void zerowyInterwalNieDzieliPrzezZero() {
+    void zeroIntervalDoesNotDivideByZero() {
         assertFalse(DecaySchedule.shouldDecay(999_999L, START, 0L));
         assertFalse(DecaySchedule.shouldDecay(999_999L, START, -5L));
     }
 
     @Test
-    void cofnietyLicznikMilczy() {
-        // countTicks moze wrocic do zera, gdy grob zostanie postawiony na nowo.
+    void rewoundCounterStaysSilent() {
+        // countTicks can return to zero when the grave is placed anew.
         assertFalse(DecaySchedule.shouldDecay(10L, START, INTERVAL));
     }
 }
 ```
 
-- [ ] **Step 2: Uruchom test**
+- [ ] **Step 2: Run the test**
 
 Run: `./gradlew test --tests '*DecayScheduleTest*'`
-Expected: PASS — `DecaySchedule` powstał już w Tasku 2, więc te testy przechodzą od razu. To celowe: potwierdzają zachowanie, którego nikt jeszcze nie sprawdził.
+Expected: PASS — `DecaySchedule` was already created in Task 2, so these tests pass right away. That is deliberate: they confirm behaviour nobody has checked yet.
 
-- [ ] **Step 3: Napisz failujący test wyboru ofiary**
+- [ ] **Step 3: Write the failing victim-selection test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1405,9 +1405,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DecayVictimTest {
 
-    /** Deterministyczna "losowosc": zawsze pierwszy element. */
+    /** Deterministic "randomness": always the first element. */
     private static final IntUnaryOperator FIRST = bound -> 0;
-    /** Zawsze ostatni. */
+    /** Always the last. */
     private static final IntUnaryOperator LAST = bound -> bound - 1;
 
     private static List<Integer> none() {
@@ -1415,13 +1415,13 @@ class DecayVictimTest {
     }
 
     @Test
-    void pustyGrobNieOddajeNiczego() {
+    void emptyGraveGivesUpNothing() {
         assertEquals(DecayVictim.NOTHING, DecayVictim.pick(none(), none(), true, FIRST));
         assertEquals(DecayVictim.NOTHING, DecayVictim.pick(none(), none(), false, FIRST));
     }
 
     @Test
-    void niechronioneIdaPierwsze() {
+    void unprotectedGoFirst() {
         List<Integer> unprotected = Arrays.asList(3, 4);
         List<Integer> guarded = Arrays.asList(9);
 
@@ -1430,19 +1430,19 @@ class DecayVictimTest {
     }
 
     @Test
-    void samoChronioneIZwolnienieOznaczaZatrzymanie() {
+    void onlyProtectedWithExemptionMeansStop() {
         assertEquals(DecayVictim.NOTHING,
                      DecayVictim.pick(none(), Arrays.asList(9, 10), true, FIRST));
     }
 
     @Test
-    void samoChronioneIKolejnoscOznaczaZjedzenieChronionego() {
+    void onlyProtectedWithOrderingMeansProtectedGetsEaten() {
         assertEquals(9, DecayVictim.pick(none(), Arrays.asList(9, 10), false, FIRST));
         assertEquals(10, DecayVictim.pick(none(), Arrays.asList(9, 10), false, LAST));
     }
 
     @Test
-    void losowanieMiesciSieWZakresie() {
+    void pickStaysInRange() {
         List<Integer> unprotected = Arrays.asList(1, 2, 3);
         for (int i = 0; i < 3; i++) {
             final int fixed = i;
@@ -1453,12 +1453,12 @@ class DecayVictimTest {
 }
 ```
 
-- [ ] **Step 4: Uruchom test, potwierdź że nie kompiluje**
+- [ ] **Step 4: Run the test, confirm it does not compile**
 
 Run: `./gradlew test`
 Expected: FAIL — `cannot find symbol: class DecayVictim`.
 
-- [ ] **Step 5: Napisz `DecayVictim`**
+- [ ] **Step 5: Write `DecayVictim`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1467,12 +1467,12 @@ import java.util.List;
 import java.util.function.IntUnaryOperator;
 
 /**
- * Ktory zajety slot rozkladajacy sie grob oddaje nastepny.
+ * Which occupied slot a decaying grave gives up next.
  *
- * <p>Dwie listy kandydatow, nie jedna. Stacki niechronione sa zjadane pierwsze; chronione
- * sa w ogole nieosiagalne, dopoki zostalo cokolwiek innego. Gdy zostaly tylko one, decyduje
- * {@code neverDecay}: prawda = ochrona jest zwolnieniem (grob staje w miejscu),
- * falsz = ochrona byla tylko kolejnoscia.
+ * <p>Two candidate lists, not one. Unprotected stacks are eaten first; protected ones
+ * are not reachable at all as long as anything else is left. When only they are left, it is decided by
+ * {@code neverDecay}: true = protection is an exemption (the grave stops where it is),
+ * false = protection was only an ordering.
  */
 public final class DecayVictim {
 
@@ -1482,10 +1482,10 @@ public final class DecayVictim {
     }
 
     /**
-     * @param unprotected indeksy slotow ze stackiem niechronionym
-     * @param guarded     indeksy slotow ze stackiem chronionym
-     * @param neverDecay  czy ochrona jest zwolnieniem, czy tylko kolejnoscia
-     * @param random      bound -&gt; wartosc z przedzialu [0, bound)
+     * @param unprotected indices of slots holding an unprotected stack
+     * @param guarded     indices of slots holding a protected stack
+     * @param neverDecay  whether protection is an exemption or only an ordering
+     * @param random      bound -&gt; a value from the range [0, bound)
      */
     public static int pick(List<Integer> unprotected, List<Integer> guarded,
                            boolean neverDecay, IntUnaryOperator random) {
@@ -1501,30 +1501,30 @@ public final class DecayVictim {
 }
 ```
 
-> `IntUnaryOperator` jest w `java.util.function`, obecnym od Javy 8 — nie łamie zasady 1.
+> `IntUnaryOperator` is in `java.util.function`, present since Java 8 — it does not break rule 1.
 
-- [ ] **Step 6: Uruchom testy**
+- [ ] **Step 6: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 36 testów.
+Expected: PASS, 36 tests.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(core): DecayVictim + testy harmonogramu decay"
+git commit -m "feat(core): DecayVictim + decay schedule tests"
 ```
 
 ---
 
-## Task 8: `core` — cooldowny
+## Task 8: `core` — cooldowns
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/core/CooldownRules.java`
 - Create: `src/main/java/com/spege/tombtweaks/core/Cooldown.java`
 - Test: `src/test/java/com/spege/tombtweaks/core/CooldownTest.java`
 
-- [ ] **Step 1: Napisz failujący test**
+- [ ] **Step 1: Write the failing test**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1543,7 +1543,7 @@ class CooldownTest {
     private static final long MINUTE = 60_000L;
 
     @Test
-    void parserCzytaParyNazwaMinuty() {
+    void parserReadsNameMinutesPairs() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList(
                 "tombstone:book_of_disenchantment;6",
                 "tombstone:book_of_magic_impregnation;12"));
@@ -1553,22 +1553,22 @@ class CooldownTest {
     }
 
     @Test
-    void nieznanaKsiegaNieMaCooldownu() {
+    void unknownBookHasNoCooldown() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;5"));
         assertEquals(0L, rules.millisFor("tombstone:book_of_oblivion"));
     }
 
     @Test
-    void zeroMinutOznaczaWylaczony() {
+    void zeroMinutesMeansDisabled() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;0"));
         assertEquals(0L, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void popsuteWpisySaPomijaneANieFatalne() {
+    void malformedEntriesAreSkippedNotFatal() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList(
-                "bez_srednika",
-                "tombstone:book_of_scribe;nie_liczba",
+                "no_semicolon",
+                "tombstone:book_of_scribe;not_a_number",
                 ";7",
                 "tombstone:book_of_scribe;5"));
 
@@ -1576,24 +1576,24 @@ class CooldownTest {
     }
 
     @Test
-    void minutySaOgraniczoneDoDwunastuGodzin() {
+    void minutesAreClampedToTwelveHours() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;9000"));
         assertEquals(720L * MINUTE, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void ujemneMinutyToBrakCooldownu() {
+    void negativeMinutesMeanNoCooldown() {
         CooldownRules rules = CooldownRules.parse(Arrays.asList("tombstone:book_of_scribe;-3"));
         assertEquals(0L, rules.millisFor("tombstone:book_of_scribe"));
     }
 
     @Test
-    void pustaKonfiguracjaJestPusta() {
+    void emptyConfigIsEmpty() {
         assertTrue(CooldownRules.parse(new ArrayList<String>()).isEmpty());
     }
 
     @Test
-    void pozostalyCzasMalejeIDochodziDoZera() {
+    void remainingTimeShrinksToZero() {
         long lastUse = 1_000_000L;
         long cooldown = 10L * MINUTE;
 
@@ -1604,21 +1604,21 @@ class CooldownTest {
     }
 
     @Test
-    void brakUzyciaToBrakCooldownu() {
+    void noUseMeansNoCooldown() {
         assertEquals(0L, Cooldown.remaining(0L, 10L * MINUTE, 5_000_000L));
         assertFalse(Cooldown.isActive(0L, 10L * MINUTE, 5_000_000L));
     }
 
     @Test
-    void cofnietyZegarNieBlokujeGracza() {
-        // Zegar systemowy moze sie cofnac (zmiana czasu, synchronizacja NTP).
-        // Nie wolno przez to zamknac graczowi ksiegi na wieki.
+    void rewoundClockDoesNotBlockPlayer() {
+        // The system clock can go backwards (a time change, NTP synchronisation).
+        // That must not lock the player out of the book forever.
         assertEquals(0L, Cooldown.remaining(5_000_000L, 10L * MINUTE, 1_000L));
         assertFalse(Cooldown.isActive(5_000_000L, 10L * MINUTE, 1_000L));
     }
 
     @Test
-    void aktywnyDopokiCosZostalo() {
+    void activeWhileAnyTimeRemains() {
         long lastUse = 1_000_000L;
         assertTrue(Cooldown.isActive(lastUse, 10L * MINUTE, lastUse + MINUTE));
         assertFalse(Cooldown.isActive(lastUse, 10L * MINUTE, lastUse + 10L * MINUTE));
@@ -1626,12 +1626,12 @@ class CooldownTest {
 }
 ```
 
-- [ ] **Step 2: Uruchom test, potwierdź że nie kompiluje**
+- [ ] **Step 2: Run the test, confirm it does not compile**
 
 Run: `./gradlew test`
 Expected: FAIL — `cannot find symbol: class CooldownRules`.
 
-- [ ] **Step 3: Napisz `CooldownRules`**
+- [ ] **Step 3: Write `CooldownRules`**
 
 ```java
 package com.spege.tombtweaks.core;
@@ -1641,11 +1641,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Ile trwa cooldown ktorej ksiegi.
+ * How long each book's cooldown lasts.
  *
- * <p>Format wpisu: {@code nazwa_rejestrowa;minuty}. Popsuty wpis jest pomijany, nigdy fatalny -
- * blad w configu nie ma prawa wywalic serwera. Minuty sa przycinane do 12 godzin, bo
- * wieksza wartosc to prawie na pewno pomylka, a nie zamiar.
+ * <p>Entry format: {@code registry_name;minutes}. A broken entry is skipped, never fatal -
+ * a config error has no right to bring the server down. Minutes are clamped to 12 hours, because
+ * a larger value is almost certainly a mistake, not an intention.
  */
 public final class CooldownRules {
 
@@ -1686,7 +1686,7 @@ public final class CooldownRules {
         return new CooldownRules(parsed);
     }
 
-    /** @return dlugosc cooldownu w ms, albo 0 gdy ta ksiega go nie ma */
+    /** @return the cooldown length in ms, or 0 when that book has none */
     public long millisFor(String itemId) {
         Long millis = millisById.get(itemId);
         return millis == null ? 0L : millis.longValue();
@@ -1698,26 +1698,26 @@ public final class CooldownRules {
 }
 ```
 
-- [ ] **Step 4: Napisz `Cooldown`**
+- [ ] **Step 4: Write `Cooldown`**
 
 ```java
 package com.spege.tombtweaks.core;
 
-/** Arytmetyka pozostalego czasu. Zegar scienny w milisekundach. */
+/** Remaining-time arithmetic. Wall clock in milliseconds. */
 public final class Cooldown {
 
     private Cooldown() {
     }
 
     /**
-     * @return ile ms zostalo, 0 gdy wolne
+     * @return how many ms are left, 0 when it is free
      */
     public static long remaining(long lastUseMillis, long cooldownMillis, long nowMillis) {
         if (cooldownMillis <= 0L || lastUseMillis <= 0L) {
             return 0L;
         }
         if (nowMillis < lastUseMillis) {
-            return 0L; // zegar sie cofnal - nie zamykamy gracza na wieki
+            return 0L; // the clock went backwards - we do not lock the player out forever
         }
         long elapsed = nowMillis - lastUseMillis;
         return elapsed >= cooldownMillis ? 0L : cooldownMillis - elapsed;
@@ -1729,16 +1729,16 @@ public final class Cooldown {
 }
 ```
 
-- [ ] **Step 5: Uruchom testy**
+- [ ] **Step 5: Run the tests**
 
 Run: `./gradlew test`
-Expected: PASS, 47 testów. Cały `core` gotowy.
+Expected: PASS, 47 tests. All of `core` is done.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(core): CooldownRules + Cooldown, odporne na popsuty config i cofniety zegar"
+git commit -m "feat(core): CooldownRules + Cooldown, robust against a broken config and a rewound clock"
 ```
 
 ---
@@ -1749,7 +1749,7 @@ git commit -m "feat(core): CooldownRules + Cooldown, odporne na popsuty config i
 - Create: `src/main/java/com/spege/tombtweaks/platform/Config.java`
 - Modify: `src/main/java/com/spege/tombtweaks/TombTweaks.java`
 
-- [ ] **Step 1: Napisz `Config`**
+- [ ] **Step 1: Write `Config`**
 
 ```java
 package com.spege.tombtweaks.platform;
@@ -1762,13 +1762,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Trzy kategorie, plik config/tombtweaks-common.toml.
+ * Three categories, file config/tombtweaks-common.toml.
  *
- * <p>Bez master switcha: przy trzech featurach z wlasnymi przelacznikami byl juz tylko
- * dodatkowym stanem, w ktorym da sie utknac.
+ * <p>No master switch: with three features that have their own toggles it was just
+ * extra state to get stuck in.
  *
- * <p>Domyslne listy ochrony sa PUSTE. Te z 1.12.2 naleza do konkretnego packa,
- * a publiczny mod nie ma prawa ich zakladac.
+ * <p>The default protection lists are EMPTY. The ones from 1.12.2 belong to a specific pack,
+ * and a public mod has no right to assume them.
  */
 public final class Config {
 
@@ -1865,9 +1865,9 @@ public final class Config {
 }
 ```
 
-- [ ] **Step 2: Zarejestruj config w klasie `@Mod`**
+- [ ] **Step 2: Register the config in the `@Mod` class**
 
-Zastąp treść `TombTweaks.java`:
+Replace the contents of `TombTweaks.java`:
 
 ```java
 package com.spege.tombtweaks;
@@ -1894,28 +1894,28 @@ public final class TombTweaks {
 }
 ```
 
-- [ ] **Step 3: Zbuduj i odpal klienta**
+- [ ] **Step 3: Build and launch the client**
 
 Run: `./gradlew runClient`
-Expected: klient wstaje, a w `run/config/` powstaje `tombtweaks-common.toml` z trzema kategoriami i `[decay] enabled = false`. Sprawdź plik, zamknij klienta.
+Expected: the client starts, and `run/config/` gets a `tombtweaks-common.toml` with three categories and `[decay] enabled = false`. Check the file, close the client.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(platform): ForgeConfigSpec z trzema kategoriami"
+git commit -m "feat(platform): ForgeConfigSpec with three categories"
 ```
 
 ---
 
-## Task 10: `platform` — adaptery i kodek
+## Task 10: `platform` — adapters and codec
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/platform/StackViews.java`
 - Create: `src/main/java/com/spege/tombtweaks/platform/PlayerData.java`
 - Create: `src/main/java/com/spege/tombtweaks/platform/SnapshotCodec.java`
 
-- [ ] **Step 1: Napisz `StackViews`**
+- [ ] **Step 1: Write `StackViews`**
 
 ```java
 package com.spege.tombtweaks.platform;
@@ -1935,7 +1935,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** Jedyne miejsce, w ktorym ItemStack zamienia sie w cos, co rozumie core. */
+/** The only place where an ItemStack turns into something core understands. */
 public final class StackViews {
 
     private static final String UNKNOWN = "minecraft:air";
@@ -1989,7 +1989,7 @@ public final class StackViews {
 }
 ```
 
-- [ ] **Step 2: Napisz `PlayerData`**
+- [ ] **Step 2: Write `PlayerData`**
 
 ```java
 package com.spege.tombtweaks.platform;
@@ -1999,8 +1999,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * Jedyny pod-tag danych gracza, ktory Forge przenosi przez smierc.
- * Wszystko, co ma przetrwac respawn, musi siedziec tutaj.
+ * The only player-data sub-tag that Forge carries across death.
+ * Everything that has to survive a respawn must live here.
  */
 public final class PlayerData {
 
@@ -2017,7 +2017,7 @@ public final class PlayerData {
 }
 ```
 
-- [ ] **Step 3: Napisz `SnapshotCodec`**
+- [ ] **Step 3: Write `SnapshotCodec`**
 
 ```java
 package com.spege.tombtweaks.platform;
@@ -2034,7 +2034,7 @@ import net.minecraft.world.entity.player.Player;
 import java.util.ArrayList;
 import java.util.List;
 
-/** SnapshotStore w obie strony przez NBT gracza. */
+/** SnapshotStore both ways through the player's NBT. */
 public final class SnapshotCodec {
 
     private static final String ROOT = "tombtweaks_slot_snapshots";
@@ -2087,7 +2087,7 @@ public final class SnapshotCodec {
 }
 ```
 
-- [ ] **Step 4: Zbuduj**
+- [ ] **Step 4: Build**
 
 Run: `./gradlew build`
 Expected: `BUILD SUCCESSFUL`.
@@ -2096,7 +2096,7 @@ Expected: `BUILD SUCCESSFUL`.
 
 ```bash
 git add -A
-git commit -m "feat(platform): StackViews, PlayerData i SnapshotCodec"
+git commit -m "feat(platform): StackViews, PlayerData and SnapshotCodec"
 ```
 
 ---
@@ -2108,7 +2108,7 @@ git commit -m "feat(platform): StackViews, PlayerData i SnapshotCodec"
 - Create: `src/main/java/com/spege/tombtweaks/feature/restore/SlotRestoreHandler.java`
 - Modify: `src/main/java/com/spege/tombtweaks/TombTweaks.java`
 
-- [ ] **Step 1: Napisz `SnapshotCaptureHandler`**
+- [ ] **Step 1: Write `SnapshotCaptureHandler`**
 
 ```java
 package com.spege.tombtweaks.feature.restore;
@@ -2129,19 +2129,19 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Zapisuje rozklad ekwipunku w ostatnim momencie, w ktorym jest jeszcze prawda.
+ * Records the inventory layout at the last moment when it is still the truth.
  *
- * <p>{@code Player.die()} oproznia ekwipunek zaraz po tym evencie, a wszystko, co dociera
- * do {@code LivingDropsEvent}, jest juz plaska kupka bez indeksow.
+ * <p>{@code Player.die()} empties the inventory right after this event, and everything that reaches
+ * {@code LivingDropsEvent} is already a flat pile with no indices.
  *
- * <p>Priorytet HIGHEST, zeby handler anulujacy smierc nie wszedl przed nami. Snapshot dla
- * smierci, ktora sie nie wydarzyla, kosztuje jeden nieuzyty wpis, ktory magazyn przycina.
+ * <p>Priority HIGHEST, so that a handler cancelling the death does not get in before us. A snapshot for a
+ * death that did not happen costs one unused entry, which the store prunes.
  */
 @Mod.EventBusSubscriber(modid = TombTweaks.MODID)
 public final class SnapshotCaptureHandler {
 
     private static final int MAX_PENDING = 5;
-    private static final long MAX_AGE_MILLIS = 30L * 24L * 60L * 60L * 1000L; // 30 dni
+    private static final long MAX_AGE_MILLIS = 30L * 24L * 60L * 60L * 1000L; // 30 days
 
     private SnapshotCaptureHandler() {
     }
@@ -2200,7 +2200,7 @@ public final class SnapshotCaptureHandler {
 }
 ```
 
-- [ ] **Step 2: Napisz `SlotRestoreHandler`**
+- [ ] **Step 2: Write `SlotRestoreHandler`**
 
 ```java
 package com.spege.tombtweaks.feature.restore;
@@ -2225,25 +2225,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Odklada zawartosc odzyskanego grobu tam, skad przyszla.
+ * Puts the contents of a recovered grave back where they came from.
  *
- * <p>Bez mixina. Tombstone odpala {@code RestoreInventoryEvent} w jedynym uzytecznym momencie:
- * po tym, jak chanceLossOnDeath wzial swoja czesc, i przed auto-equipem oraz cala reszta
- * rozdzialu. Dostajemy zywy ItemStackHandler grobu, wiec przedmiot wyjety tutaj po prostu
- * nie istnieje dla sciezki standardowej.
+ * <p>No mixin. Tombstone fires {@code RestoreInventoryEvent} at the one useful moment:
+ * after chanceLossOnDeath has taken its share, and before auto-equip and the whole rest of the
+ * distribution. We get the grave's live ItemStackHandler, so an item taken out here simply
+ * does not exist for the standard path.
  *
- * <p>Rozsadzenie liczy {@link SlotPlan#assign} dla calego grobu naraz (dwa przebiegi), bo
- * Tombstone scala groby: druga smierc w promieniu 20 blokow dorzuca przedmioty do starego
- * grobu, a ten wiaze sie tylko ze snapshotem ostatniej smierci.
+ * <p>The seating is computed by {@link SlotPlan#assign} for the whole grave at once (two passes), because
+ * Tombstone merges graves: a second death within 20 blocks adds items to the old grave,
+ * and that one binds only to the snapshot of the last death.
  *
- * <p>Kazde wstawienie jest warunkowe na tym, ze docelowy slot jest pusty, sprawdzone ponownie
- * tuz przed wstawieniem. To ten warunek - nie {@code NO_SEAT} - gwarantuje, ze najgorszym
- * przypadkiem jest zachowanie standardowe, nigdy zgubiony ani zdublowany przedmiot.
+ * <p>Every insertion is conditional on the target slot being empty, re-checked right before
+ * inserting. It is that condition - not {@code NO_SEAT} - that guarantees the worst case
+ * is the standard behaviour, never a lost or duplicated item.
  */
 @Mod.EventBusSubscriber(modid = TombTweaks.MODID)
 public final class SlotRestoreHandler {
 
-    /** Ile ms moze dzielic capturedAt snapshotu od deathDate grobu. */
+    /** How many ms may separate the snapshot's capturedAt from the grave's deathDate. */
     private static final long TOLERANCE_MILLIS = 10_000L;
 
     private SlotRestoreHandler() {
@@ -2283,7 +2283,7 @@ public final class SlotRestoreHandler {
         int seated = 0;
         for (int i = 0; i < seats.length; i++) {
             int seat = seats[i];
-            // Ponowne sprawdzenie to warunek niezmiennika, nie ostroznosc na zapas.
+            // The re-check is a condition of the invariant, not extra caution.
             if (seat == SlotPlan.NO_SEAT || !isSeatFree(inventory, seat)) {
                 continue;
             }
@@ -2315,7 +2315,7 @@ public final class SlotRestoreHandler {
         if (seat >= 0 && seat < inventory.items.size()) {
             return inventory.items.get(seat).isEmpty();
         }
-        return false; // np. zarezerwowana przestrzen Curios - nieobslugiwana w v1
+        return false; // e.g. the reserved Curios space - unsupported in v1
     }
 
     private static void place(Inventory inventory, int seat, ItemStack stack) {
@@ -2330,34 +2330,34 @@ public final class SlotRestoreHandler {
 }
 ```
 
-- [ ] **Step 3: Zbuduj**
+- [ ] **Step 3: Build**
 
 Run: `./gradlew build`
 Expected: `BUILD SUCCESSFUL`.
 
-- [ ] **Step 4: Weryfikacja w grze**
+- [ ] **Step 4: In-game verification**
 
 Run: `./gradlew runClient`
 
-Zrób w grze:
+Do this in game:
 1. `/gamerule keepInventory false`
-2. Ustaw charakterystyczny układ: miecz w slocie 1, chleb w slocie 9, coś w offhandzie, pełny pancerz, jeden pusty slot w środku hotbara.
-3. Zabij się (`/kill`).
-4. Wróć po grób i odzyskaj go.
+2. Set up a distinctive layout: a sword in slot 1, bread in slot 9, something in the offhand, full armor, one empty slot in the middle of the hotbar.
+3. Kill yourself (`/kill`).
+4. Go back to the grave and recover it.
 
-Expected: wszystko wraca **na swoje miejsca**, łącznie z pancerzem i offhandem; pusty slot zostaje pusty.
+Expected: everything comes back **to its own place**, including armor and offhand; the empty slot stays empty.
 
-Powtórz z `debugLogging = true` i sprawdź w logu parę linii `recorded N seats` / `seated N of M`.
+Repeat with `debugLogging = true` and check the log for a pair of lines `recorded N seats` / `seated N of M`.
 
-- [ ] **Step 5: Weryfikacja `isReverseInventorySorting`**
+- [ ] **Step 5: Verify `isReverseInventorySorting`**
 
-W GUI ustawień Tombstone'a sprawdź, czy „reverse inventory sorting" jest domyślnie wyłączone. Włącz je, powtórz test ze Stepu 4 i **zanotuj wynik w README** — to jedyne otwarte założenie ze speca. Nie naprawiaj tego teraz.
+In Tombstone's settings GUI, check whether "reverse inventory sorting" is off by default. Turn it on, repeat the test from Step 4 and **note the result in the README** — it is the only open assumption from the spec. Do not fix it now.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(restore): exact-slot grave restore na RestoreInventoryEvent, bez mixina"
+git commit -m "feat(restore): exact-slot grave restore on RestoreInventoryEvent, no mixin"
 ```
 
 ---
@@ -2365,14 +2365,14 @@ git commit -m "feat(restore): exact-slot grave restore na RestoreInventoryEvent,
 ## Task 12: Feature — grave decay
 
 **Files:**
-- Modify: `src/main/resources/mixins.tombtweaks.json` (dopisz wpis do pustej listy założonej w Tasku 2)
+- Modify: `src/main/resources/mixins.tombtweaks.json` (add an entry to the empty list created in Task 2)
 - Create: `src/main/java/com/spege/tombtweaks/mixin/MixinBlockEntityPlayerGrave.java`
 - Create: `src/main/java/com/spege/tombtweaks/feature/decay/GraveDecayService.java`
 - Create: `src/main/java/com/spege/tombtweaks/feature/decay/DecayHistory.java`
 
-- [ ] **Step 1: Dopisz mixin do `mixins.tombtweaks.json`**
+- [ ] **Step 1: Add the mixin to `mixins.tombtweaks.json`**
 
-Plik istnieje od Tasku 2 z pustą listą. Zmień samą listę `mixins` na:
+The file has existed since Task 2 with an empty list. Change only the `mixins` list to:
 
 ```json
   "mixins": [
@@ -2380,9 +2380,9 @@ Plik istnieje od Tasku 2 z pustą listą. Zmień samą listę `mixins` na:
   ],
 ```
 
-> Dopisujesz **tylko** mixin z tego zadania. Przy `"required": true` klasa wymieniona, a nieistniejąca, to twardy crash przy starcie — dwa mixiny cooldownu dopisze Task 13 Step 1, gdy już będą istnieć.
+> Add **only** the mixin from this task. With `"required": true`, a class that is listed but does not exist is a hard crash at startup — the two cooldown mixins will be added by Task 13 Step 1, once they exist.
 
-- [ ] **Step 2: Napisz `DecayHistory`**
+- [ ] **Step 2: Write `DecayHistory`**
 
 ```java
 package com.spege.tombtweaks.feature.decay;
@@ -2401,11 +2401,11 @@ import net.minecraft.world.level.Level;
 import java.util.UUID;
 
 /**
- * Co grob juz stracil.
+ * What the grave has already lost.
  *
- * <p>Wersja z 1.12.2 zapisywala historie przez wyszukanie gracza PO NAZWIE, wiec grob
- * gracza offline rozkladal sie bez sladu - dokladnie w scenariuszu, dla ktorego feature
- * powstal. Tutaj kluczem jest UUID, a dla gracza offline wpis idzie na razie tylko do logu.
+ * <p>The 1.12.2 version wrote the history by looking the player up BY NAME, so the grave of
+ * an offline player decayed without a trace - exactly the scenario the feature
+ * was created for. Here the key is the UUID, and for an offline player the entry goes only to the log for now.
  */
 public final class DecayHistory {
 
@@ -2446,7 +2446,7 @@ public final class DecayHistory {
 }
 ```
 
-- [ ] **Step 3: Napisz `GraveDecayService`**
+- [ ] **Step 3: Write `GraveDecayService`**
 
 ```java
 package com.spege.tombtweaks.feature.decay;
@@ -2466,7 +2466,7 @@ import ovh.corail.tombstone.block.entity.BlockEntityPlayerGrave;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Jeden tick jednego grobu. Wszystkie decyzje podejmuje core; tu jest tylko wykonanie. */
+/** One tick of one grave. All decisions are made by core; this is only the execution. */
 public final class GraveDecayService {
 
     private GraveDecayService() {
@@ -2490,8 +2490,8 @@ public final class GraveDecayService {
             return;
         }
 
-        // ProtectionRules.of przyjmuje List<?> i sam pomija null oraz nie-Stringi,
-        // wiec wartosci z configu ida wprost, bez rzutowania.
+        // ProtectionRules.of takes List<?> and skips nulls and non-Strings by itself,
+        // so the config values go straight in, without casting.
         ProtectionRules rules = ProtectionRules.of(
                 Config.INSTANCE.decayProtectedItems.get(),
                 Config.INSTANCE.decayProtectedItemPrefixes.get(),
@@ -2523,11 +2523,11 @@ public final class GraveDecayService {
         if (lost.isEmpty()) {
             return;
         }
-        // Inwentarz grobu to gole ItemStackHandler bez onContentsChanged - samo wyjecie NIE
-        // oznacza block entity jako zmienionego. Bez tego chunk moze sie zapisac ze starym
-        // stanem grobu, a wyrzucony przedmiot (encja, zapisywana osobno) przetrwa restart:
-        // po wczytaniu jest i na ziemi, i z powrotem w grobie. Duplikacja.
-        // (Dopisane 2026-10-02 po sprawdzeniu bajtkodu konstruktora BlockEntityPlayerGrave.)
+        // The grave's inventory is a bare ItemStackHandler with no onContentsChanged - the extraction
+        // alone does NOT mark the block entity as changed. Without this the chunk may be saved with the old
+        // grave state, and the dropped item (an entity, saved separately) survives a restart:
+        // after loading it is both on the ground and back in the grave. Duplication.
+        // (Added 2026-10-02 after checking the bytecode of the BlockEntityPlayerGrave constructor.)
         grave.setChanged();
 
         Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D, lost);
@@ -2536,7 +2536,7 @@ public final class GraveDecayService {
 }
 ```
 
-- [ ] **Step 4: Napisz mixin**
+- [ ] **Step 4: Write the mixin**
 
 ```java
 package com.spege.tombtweaks.mixin;
@@ -2552,9 +2552,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ovh.corail.tombstone.block.entity.BlockEntityPlayerGrave;
 
 /**
- * Wpina rozklad w wlasny ticker grobu.
+ * Hooks decay into the grave's own ticker.
  *
- * <p>remap = false, bo serverTick to metoda Tombstone'a, ktorej nazwa nie jest obfuskowana.
+ * <p>remap = false, because serverTick is a Tombstone method whose name is not obfuscated.
  */
 @Mixin(BlockEntityPlayerGrave.class)
 public class MixinBlockEntityPlayerGrave {
@@ -2567,36 +2567,36 @@ public class MixinBlockEntityPlayerGrave {
 }
 ```
 
-- [ ] **Step 5: Zbuduj**
+- [ ] **Step 5: Build**
 
 Run: `./gradlew build`
-Expected: `BUILD SUCCESSFUL`. Jeśli pada `Scanned 0 target(s)` — sprawdź `javap -p ovh/corail/tombstone/block/entity/BlockEntityPlayerGrave.class`, czy sygnatura `serverTick` się nie zmieniła.
+Expected: `BUILD SUCCESSFUL`. If it fails with `Scanned 0 target(s)` — check with `javap -p ovh/corail/tombstone/block/entity/BlockEntityPlayerGrave.class` that the `serverTick` signature has not changed.
 
-- [ ] **Step 6: Weryfikacja w grze**
+- [ ] **Step 6: In-game verification**
 
 Run: `./gradlew runClient`
 
-1. W `run/config/tombtweaks-common.toml` ustaw `[decay] enabled = true`, `startTicks = 100`, `intervalTicks = 40`. Zrestartuj klienta.
-2. Sprawdź w logu linię `Mixing MixinBlockEntityPlayerGrave from mixins.tombtweaks.json into ovh.corail.tombstone.block.entity.BlockEntityPlayerGrave`. **Brak tej linii = mixin nie zadziałał, nawet jeśli gra wstała.**
-3. Zginij z pełnym ekwipunkiem, stój przy grobie i nie otwieraj go.
+1. In `run/config/tombtweaks-common.toml` set `[decay] enabled = true`, `startTicks = 100`, `intervalTicks = 40`. Restart the client.
+2. Check the log for the line `Mixing MixinBlockEntityPlayerGrave from mixins.tombtweaks.json into ovh.corail.tombstone.block.entity.BlockEntityPlayerGrave`. **No such line = the mixin did not work, even if the game started.**
+3. Die with a full inventory, stand by the grave and do not open it.
 
-Expected: co ~2 sekundy jeden stack wypada z grobu na ziemię.
+Expected: roughly every 2 seconds one stack falls out of the grave onto the ground.
 
-4. Dodaj `"minecraft:diamond_sword"` do `protectedItems`, powtórz. Miecz musi zostać na końcu, a przy `protectedNeverDecay = true` — zostać na zawsze.
-5. Wyloguj się z serwera (single player: wyjdź do menu), wróć — grób ma kontynuować rozkład od miejsca, w którym stanął, bez resetu.
+4. Add `"minecraft:diamond_sword"` to `protectedItems`, repeat. The sword must be left for last, and with `protectedNeverDecay = true` — be left forever.
+5. Log out of the server (single player: exit to the menu), come back — the grave should continue decaying from where it stopped, with no reset.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(decay): rozklad grobu na wlasnym tickerze, bezstanowy harmonogram, historia po UUID"
+git commit -m "feat(decay): grave decay on its own ticker, stateless schedule, history keyed by UUID"
 ```
 
 ---
 
-## Task 13: Feature — cooldowny ksiąg
+## Task 13: Feature — book cooldowns
 
-> **Poprawka 2026-10-02 — kod poniżej jest częściowo nieaktualny.** Cooldown był kluczowany po `StackViews.idOf(stack)` i startowany *po* udanym `setEnchant`. Księga zużywa się przy użyciu, a pusty `ItemStack` w 1.20.1 raportuje swój item jako `minecraft:air` — dla pojedynczej księgi cooldown po cichu by nie wystartował. W implementacji kluczem jest **sam `Item` księgi**: `(Item) (Object) this` w `MixinItemBook` i receiver `ISoulConsumer` (sprawdzony `instanceof Item`) w `MixinBlockDecorativeGrave`. `BookCooldownService.remaining/start` przyjmują `Item`, a `StackViews` dostało przeciążenie `idOf(Item)`.
+> **Correction 2026-10-02 — the code below is partly outdated.** The cooldown was keyed by `StackViews.idOf(stack)` and started *after* a successful `setEnchant`. The book is consumed on use, and an empty `ItemStack` in 1.20.1 reports its item as `minecraft:air` — for a single book the cooldown would silently not start. In the implementation the key is the book's **`Item` itself**: `(Item) (Object) this` in `MixinItemBook` and the `ISoulConsumer` receiver (checked with `instanceof Item`) in `MixinBlockDecorativeGrave`. `BookCooldownService.remaining/start` take `Item`, and `StackViews` gained an `idOf(Item)` overload.
 
 **Files:**
 - Create: `src/main/java/com/spege/tombtweaks/feature/cooldown/BookCooldownService.java`
@@ -2605,9 +2605,9 @@ git commit -m "feat(decay): rozklad grobu na wlasnym tickerze, bezstanowy harmon
 - Create: `src/main/resources/assets/tombtweaks/lang/en_us.json`
 - Modify: `src/main/resources/mixins.tombtweaks.json`
 
-- [ ] **Step 1: Dopisz dwa mixiny do `mixins.tombtweaks.json`**
+- [ ] **Step 1: Add the two mixins to `mixins.tombtweaks.json`**
 
-Lista `mixins` ma teraz zawierać wszystkie trzy:
+The `mixins` list should now contain all three:
 
 ```json
   "mixins": [
@@ -2617,7 +2617,7 @@ Lista `mixins` ma teraz zawierać wszystkie trzy:
   ],
 ```
 
-- [ ] **Step 2: Napisz `BookCooldownService`**
+- [ ] **Step 2: Write `BookCooldownService`**
 
 ```java
 package com.spege.tombtweaks.feature.cooldown;
@@ -2632,7 +2632,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-/** Odczyt i zapis cooldownu jednej ksiegi. Zegar scienny, ta sama skala co Tombstone. */
+/** Reading and writing one book's cooldown. Wall clock, the same scale as Tombstone. */
 public final class BookCooldownService {
 
     private static final String PREFIX = "tombtweaks_cooldown_";
@@ -2644,7 +2644,7 @@ public final class BookCooldownService {
         return CooldownRules.parse(Config.INSTANCE.cooldownBooks.get());
     }
 
-    /** @return ile ms zostalo, 0 gdy wolne albo gdy feature jest wylaczony */
+    /** @return how many ms are left, 0 when it is free or when the feature is disabled */
     public static long remaining(Player player, ItemStack book) {
         if (!Config.INSTANCE.cooldownEnabled.get()) {
             return 0L;
@@ -2677,7 +2677,7 @@ public final class BookCooldownService {
 }
 ```
 
-- [ ] **Step 3: Napisz `MixinItemBook` (blokada)**
+- [ ] **Step 3: Write `MixinItemBook` (the block)**
 
 ```java
 package com.spege.tombtweaks.mixin;
@@ -2694,10 +2694,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ovh.corail.tombstone.item.ItemBook;
 
 /**
- * Blokada uzycia ksiegi w trakcie cooldownu.
+ * Blocks using a book during its cooldown.
  *
- * <p>Siedzi na klasie bazowej wszystkich ksiag, wiec dziala niezaleznie od tego, skad
- * ktos ja zawola. remap = false: canEnchant to metoda Tombstone'a.
+ * <p>It sits on the base class of all the books, so it works regardless of where
+ * someone calls it from. remap = false: canEnchant is a Tombstone method.
  */
 @Mixin(ItemBook.class)
 public class MixinItemBook {
@@ -2717,7 +2717,7 @@ public class MixinItemBook {
 }
 ```
 
-- [ ] **Step 4: Napisz `MixinBlockDecorativeGrave` (start cooldownu)**
+- [ ] **Step 4: Write `MixinBlockDecorativeGrave` (cooldown start)**
 
 ```java
 package com.spege.tombtweaks.mixin;
@@ -2734,18 +2734,18 @@ import ovh.corail.tombstone.api.capability.ISoulConsumer;
 import ovh.corail.tombstone.block.BlockDecorativeGrave;
 
 /**
- * Startuje cooldown dokladnie wtedy, gdy uzycie ksiegi sie powiodlo.
+ * Starts the cooldown exactly when the use of the book succeeded.
  *
- * <p>ISoulConsumer.setEnchant jest wolane z jednego miejsca w calym Tombstonie - stad
- * jeden redirect obejmuje wszystkie ksiegi.
+ * <p>ISoulConsumer.setEnchant is called from one place in all of Tombstone - hence
+ * a single redirect covers all the books.
  *
- * <p>Dwa poziomy remapowania: selektor method = "use" celuje w metode Minecrafta
- * (BlockBehaviour.use), wiec MUSI byc remapowany - i to on jest powodem, dla ktorego
- * refmapy w tym projekcie sa wlaczone. Wewnetrzny @At celuje w czlonka Tombstone'a
- * i dostaje wlasne remap = false.
+ * <p>Two levels of remapping: the selector method = "use" targets a Minecraft method
+ * (BlockBehaviour.use), so it MUST be remapped - and that is the reason why
+ * refmaps are enabled in this project. The inner @At targets a Tombstone member
+ * and gets its own remap = false.
  *
- * <p>Receiver redirectu to ISoulConsumer, bo wywolanie to invokeinterface na tym
- * interfejsie - nie na konkretnej ksiedze.
+ * <p>The redirect's receiver is ISoulConsumer, because the call is an invokeinterface on that
+ * interface - not on a concrete book.
  */
 @Mixin(BlockDecorativeGrave.class)
 public class MixinBlockDecorativeGrave {
@@ -2774,7 +2774,7 @@ public class MixinBlockDecorativeGrave {
 }
 ```
 
-- [ ] **Step 5: Napisz plik językowy**
+- [ ] **Step 5: Write the language file**
 
 `src/main/resources/assets/tombtweaks/lang/en_us.json`:
 
@@ -2784,113 +2784,113 @@ public class MixinBlockDecorativeGrave {
 }
 ```
 
-- [ ] **Step 6: Zbuduj**
+- [ ] **Step 6: Build**
 
 Run: `./gradlew build`
-Expected: `BUILD SUCCESSFUL`. Jeśli redirect pada z `Scanned 0 target(s)`, sprawdź deskryptor:
+Expected: `BUILD SUCCESSFUL`. If the redirect fails with `Scanned 0 target(s)`, check the descriptor:
 
 ```bash
 "/c/Program Files/Java/jdk-21.0.11/bin/javap" -p -c -cp libs/tombstone-1.20.1-9.1.4.jar ovh.corail.tombstone.block.BlockDecorativeGrave | grep setEnchant
 ```
 
-- [ ] **Step 7: Weryfikacja w grze**
+- [ ] **Step 7: In-game verification**
 
 Run: `./gradlew runClient`
 
-1. Sprawdź w logu **dwie** linie `Mixing MixinItemBook …` i `Mixing MixinBlockDecorativeGrave …`.
-2. Zdobądź Book of Disenchantment i ozdobny grób z duszą (`/give` + tryb kreatywny).
-3. Użyj księgi — musi zadziałać.
-4. Użyj natychmiast drugi raz — musi odmówić, z komunikatem nad hotbarem i sensowną liczbą sekund.
-5. Wyjdź do menu i wróć — cooldown ma trwać dalej, nie zresetować się.
-6. Ustaw `books = ["tombstone:book_of_disenchantment;0"]` — cooldown ma zniknąć.
+1. Check the log for **two** lines, `Mixing MixinItemBook …` and `Mixing MixinBlockDecorativeGrave …`.
+2. Get a Book of Disenchantment and a decorative grave with a soul (`/give` + creative mode).
+3. Use the book — it must work.
+4. Use it a second time immediately — it must refuse, with a message above the hotbar and a sensible number of seconds.
+5. Exit to the menu and come back — the cooldown must keep running, not reset.
+6. Set `books = ["tombstone:book_of_disenchantment;0"]` — the cooldown must disappear.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(cooldown): blokada na ItemBook + start na jedynym wywolaniu setEnchant"
+git commit -m "feat(cooldown): block on ItemBook + start on the single setEnchant call"
 ```
 
 ---
 
-## Task 14: README i wydanie 0.1.0
+## Task 14: README and the 0.1.0 release
 
 **Files:**
 - Create: `E:\Isuth\tombtweaks-1201\README.md`
-- Create: `E:\Isuth\tombtweaks-1201\docs\specs\2026-08-14-tombtweaks-1201-port-design.md` (kopia specu)
+- Create: `E:\Isuth\tombtweaks-1201\docs\superpowers\specs\2026-08-14-tombtweaks-1201-port-design.md` (copy of the spec)
 
-- [ ] **Step 1: Skopiuj spec do nowego repo**
+- [ ] **Step 1: Copy the spec into the new repo**
 
 ```bash
-mkdir -p /e/Isuth/tombtweaks-1201/docs/specs
-cp /e/Isuth/modDev/docs/superpowers/specs/2026-08-14-tombtweaks-1201-port-design.md /e/Isuth/tombtweaks-1201/docs/specs/
+mkdir -p /e/Isuth/tombtweaks-1201/docs/superpowers/specs
+cp /e/Isuth/modDev/docs/superpowers/specs/2026-08-14-tombtweaks-1201-port-design.md /e/Isuth/tombtweaks-1201/docs/superpowers/specs/
 ```
 
-- [ ] **Step 2: Napisz `README.md`**
+- [ ] **Step 2: Write `README.md`**
 
 ```markdown
 # TombTweaks (Minecraft 1.20.1)
 
-Trzy tweaki do Corail Tombstone 9.1.4, każdy niezależnie wyłączalny.
+Three tweaks for Corail Tombstone 9.1.4, each independently switchable off.
 
-| Feature | Co robi | Domyślnie |
+| Feature | What it does | Default |
 |---|---|---|
-| `[restore]` | Odzyskany grób oddaje przedmioty **na te same sloty**, z których zginęły — łącznie z pancerzem i offhandem | włączone |
-| `[decay]` | Nieodwiedzony grób powoli gubi zawartość; cztery listy ochrony wyjmują wybrane przedmioty spod tego | **wyłączone** |
-| `[cooldown]` | Magiczne księgi dostają cooldown, konfigurowalny per księga | włączone |
+| `[restore]` | A recovered grave gives items back **to the same slots** they died in — including armor and offhand | on |
+| `[decay]` | An unvisited grave slowly loses its contents; four protection lists exempt chosen items from this | **off** |
+| `[cooldown]` | The magic books get a cooldown, configurable per book | on |
 
 Config: `config/tombtweaks-common.toml`.
 
-## Budowanie
+## Building
 
 ```bash
-./gradlew build      # jar w build/libs/
-./gradlew test       # testy pakietu core na gołej JVM
-./gradlew runClient  # klient deweloperski
+./gradlew build      # jar in build/libs/
+./gradlew test       # tests of the core package on a bare JVM
+./gradlew runClient  # development client
 ```
 
-Wymaga JDK 17 — Gradle pobiera go sam przez toolchain.
+Requires JDK 17 — Gradle downloads it by itself via the toolchain.
 
-## Architektura
+## Architecture
 
-Trzy warstwy: `core` (zero typów Minecrafta, cała logika decyzyjna, testowana JUnitem),
-`platform` (adaptery), `feature` (handlery i trzy mixiny). `core` jest celowo napisany
-składnią Javy 8, żeby port na 1.16.5 był kopiuj-wklej.
+Three layers: `core` (zero Minecraft types, all the decision logic, tested with JUnit),
+`platform` (adapters), `feature` (handlers and three mixins). `core` is deliberately written
+in Java 8 syntax, so that the port to 1.16.5 is copy-paste.
 
-Pełne uzasadnienie decyzji: `docs/specs/2026-08-14-tombtweaks-1201-port-design.md`.
+Full rationale for the decisions: `docs/superpowers/specs/2026-08-14-tombtweaks-1201-port-design.md`.
 
-## Znane ograniczenia
+## Known limitations
 
-- **Curios nieobsługiwane** w slot restore (przestrzeń slotów 200+ jest zarezerwowana).
-  Tombstone ma własne `curioAutoEquip`.
-- **`reverse inventory sorting`** — preferencja Tombstone'a per gracz, uruchamiana po naszym
-  evencie; gdy jest włączona, odwraca odzyskany układ. Wynik weryfikacji: <UZUPEŁNIĆ w Tasku 11 Step 5>.
-- Historia rozkładu dla gracza **offline** trafia na razie tylko do logu serwera.
+- **Curios unsupported** in slot restore (the slot space 200+ is reserved).
+  Tombstone has its own `curioAutoEquip`.
+- **`reverse inventory sorting`** — a per-player Tombstone preference, run after our
+  event; when it is on, it reverses the recovered layout. Verification result: <FILL IN in Task 11 Step 5>.
+- The decay history for an **offline** player goes only to the server log for now.
 ```
 
-- [ ] **Step 3: Uzupełnij wynik weryfikacji z Taska 11 Step 5**
+- [ ] **Step 3: Fill in the verification result from Task 11 Step 5**
 
-Wpisz do README, co się dzieje przy włączonym `reverse inventory sorting`. Jeśli okaże się, że psuje restore — **nie naprawiaj tego teraz**, dopisz jako znane ograniczenie. To materiał na osobne zadanie.
+Write into the README what happens with `reverse inventory sorting` turned on. If it turns out to break restore — **do not fix it now**, add it as a known limitation. That is material for a separate task.
 
-- [ ] **Step 4: Pełny przebieg testów i budowa**
+- [ ] **Step 4: Full test run and build**
 
 Run: `./gradlew clean build`
-Expected: `BUILD SUCCESSFUL`, 47 testów PASS, jar w `build/libs/tombtweaks-1.20.1-0.1.0.jar`.
+Expected: `BUILD SUCCESSFUL`, 47 tests PASS, jar in `build/libs/tombtweaks-1.20.1-0.1.0.jar`.
 
-- [ ] **Step 5: Commit i tag**
+- [ ] **Step 5: Commit and tag**
 
 ```bash
 git add -A
-git commit -m "docs: README + kopia specu; wydanie 0.1.0"
+git commit -m "docs: README + copy of the spec; release 0.1.0"
 git tag v0.1.0
 ```
 
 ---
 
-## Czego ten plan świadomie NIE robi
+## What this plan deliberately does NOT do
 
-Wszystko poniżej jest w specu §8 z uzasadnieniem. Nie dopisuj tego po drodze:
+Everything below is in spec §8 with its rationale. Do not add it along the way:
 
-Curios w slot restore, tuning perków, whitelisty efektów, nerf grave_dust, usunięcie recepty na
-grave key, patch Curse of Possession, first-kill reward, raider alignment, integracje z Enigmatic
-Legacy i EBW Redux, port na 1.16.5, obejście `reverse inventory sorting`.
+Curios in slot restore, perk tuning, effect whitelists, a grave_dust nerf, removal of the
+grave key recipe, a Curse of Possession patch, first-kill reward, raider alignment, integrations with Enigmatic
+Legacy and EBW Redux, the port to 1.16.5, a workaround for `reverse inventory sorting`.

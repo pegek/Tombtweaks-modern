@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProtectionRulesTest {
 
-    /** Atrapa stacka - core nie zna ItemStacka i nie ma o czym wiedziec. */
+    /** Stack stub - core does not know ItemStack and has nothing to know about it. */
     private static final class FakeStack implements StackView {
         private final String id;
         private final Set<String> enchants;
@@ -42,13 +42,13 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void pustaKonfiguracjaNieChroniNiczego() {
+    void emptyConfigProtectsNothing() {
         ProtectionRules rules = ProtectionRules.of(none(), none(), none(), none());
         assertFalse(rules.isProtected(new FakeStack("minecraft:diamond_sword")));
     }
 
     @Test
-    void pelnaNazwaChroniTylkoSiebie() {
+    void fullNameProtectsOnlyItself() {
         ProtectionRules rules = ProtectionRules.of(
                 Arrays.asList("minecraft:diamond_sword"), none(), none(), none());
 
@@ -57,7 +57,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void prefiksLapieCalaRodzine() {
+    void prefixCatchesWholeFamily() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), Arrays.asList("mymod:relic_"), none(), none());
 
@@ -67,7 +67,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void enchantChroniNiezaleznieOdItemu() {
+    void enchantmentProtectsRegardlessOfItem() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), none(), Arrays.asList("mymod:soulbound"), none());
 
@@ -78,7 +78,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void matcherNbtPorownujeWartosc() {
+    void nbtMatcherComparesValue() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), none(), none(), Arrays.asList("properties=ashen_legacy"));
 
@@ -95,13 +95,13 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void popsutyWpisNbtJestIgnorowanyANiefatalny() {
+    void malformedNbtEntryIsIgnoredNotFatal() {
         ProtectionRules rules = ProtectionRules.of(
                 none(), none(), none(),
-                Arrays.asList("bez_rownosci", "=bez_klucza", "klucz=", "dobry=wpis"));
+                Arrays.asList("no_equals", "=no_key", "key=", "good=entry"));
 
         Map<String, String> matching = new HashMap<String, String>();
-        matching.put("dobry", "wpis");
+        matching.put("good", "entry");
 
         assertTrue(rules.isProtected(
                 new FakeStack("minecraft:stick", Collections.<String>emptySet(), matching)));
@@ -109,7 +109,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void nullINieStringiWKonfiguracjiSaPomijane() {
+    void nullAndNonStringsInConfigAreSkipped() {
         ProtectionRules rules = ProtectionRules.of(
                 Arrays.asList(null, 5, "minecraft:stick"), none(), none(), none());
 
@@ -118,7 +118,7 @@ class ProtectionRulesTest {
     }
 
     @Test
-    void bialeZnakiWKonfiguracjiSaWybaczane() {
+    void whitespaceInConfigIsForgiven() {
         ProtectionRules rules = ProtectionRules.of(
                 Arrays.asList("  minecraft:stick  ", "", "   "), none(), none(), none());
 

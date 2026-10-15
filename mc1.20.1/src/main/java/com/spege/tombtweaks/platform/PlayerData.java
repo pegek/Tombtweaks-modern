@@ -5,9 +5,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * Jedyny pod-tag danych gracza, ktory Forge przenosi przez smierc
- * ({@code ServerPlayer.restoreFrom} kopiuje {@link Player#PERSISTED_NBT_TAG}).
- * Wszystko, co ma przetrwac respawn, musi siedziec tutaj.
+ * The only player-data sub-tag that Forge carries across death
+ * ({@code ServerPlayer.restoreFrom} copies {@link Player#PERSISTED_NBT_TAG}).
+ * Everything that has to survive a respawn must live here.
  */
 public final class PlayerData {
 

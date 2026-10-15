@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * SnapshotStore w obie strony przez NBT gracza.
+ * SnapshotStore both ways through the player's NBT.
  *
- * <p>Konwersja jest rozdzielona od dostepu do gracza ({@link #write}/{@link #read}), zeby
- * round-trip dalo sie przetestowac bez instancji Playera - pomylka w kluczu zepsulaby
- * odtwarzanie slotow po cichu, bez sladu w logach.
+ * <p>The conversion is separated from player access ({@link #write}/{@link #read}), so that
+ * the round trip can be tested without a Player instance - a mistake in a key would silently
+ * break slot restoration, with no trace in the logs.
  */
 public final class SnapshotCodec {
 

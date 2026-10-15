@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SlotSnapshotTest {
 
     @Test
-    void itemKeyRoznicujePoNbt() {
+    void itemKeyDistinguishesByNbt() {
         assertEquals(new ItemKey("minecraft:diamond_sword", 7),
                      new ItemKey("minecraft:diamond_sword", 7));
         assertNotEquals(new ItemKey("minecraft:diamond_sword", 7),
@@ -21,14 +21,14 @@ class SlotSnapshotTest {
     }
 
     @Test
-    void pustyStackNieTrafiaDoSnapshotu() {
+    void emptyStackDoesNotEnterSnapshot() {
         SlotSnapshot snapshot = new SlotSnapshot(1000L);
         assertTrue(snapshot.isEmpty());
         assertEquals(0, snapshot.entries().size());
     }
 
     @Test
-    void konstruktorKopiujeListe() {
+    void constructorCopiesList() {
         SlotSnapshot snapshot = new SlotSnapshot(1L, Collections.<SlotEntry>emptyList());
 
         snapshot.add(0, new ItemKey("minecraft:bread", 0), 1);
@@ -37,16 +37,16 @@ class SlotSnapshotTest {
     }
 
     @Test
-    void kodowanieSlotowNieKoliduje() {
-        // Main 0-35 musi konczyc sie przed pancerzem, pancerz przed offhandem,
-        // a offhand przed zarezerwowana przestrzenia Curios.
+    void slotEncodingDoesNotCollide() {
+        // Main 0-35 must end before armor, armor before offhand,
+        // and offhand before the reserved Curios space.
         assertTrue(35 < SlotSnapshot.ARMOR_BASE);
         assertTrue(SlotSnapshot.ARMOR_BASE + 3 < SlotSnapshot.OFFHAND_SLOT);
         assertTrue(SlotSnapshot.OFFHAND_SLOT < SlotSnapshot.CURIOS_BASE);
     }
 
     @Test
-    void snapshotPamietaMiejsceIIlosc() {
+    void snapshotRemembersSeatAndCount() {
         SlotSnapshot snapshot = new SlotSnapshot(1234L);
         snapshot.add(4, new ItemKey("minecraft:bread", 0), 12);
         snapshot.add(SlotSnapshot.OFFHAND_SLOT, new ItemKey("minecraft:shield", 99), 1);

@@ -15,10 +15,10 @@ public final class TombTweaks {
 
     public TombTweaks() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC, "tombtweaks-common.toml");
-        // Wersja czytana z kontenera moda - czyli z manifestu jara, przez
-        // ${file.jarVersion} w mods.toml. NIE trzymamy drugiej kopii w stalej:
-        // taka stala rozjezdza sie z build.gradle i wtedy log klamie o tym,
-        // co jest faktycznie zainstalowane.
+        // The version is read from the mod container - i.e. from the jar manifest, through
+        // ${file.jarVersion} in mods.toml. We do NOT keep a second copy in a constant:
+        // such a constant drifts away from build.gradle and then the log lies about
+        // what is actually installed.
         LOGGER.info("[TombTweaks] {} loading",
                 ModLoadingContext.get().getActiveContainer().getModInfo().getVersion());
     }
