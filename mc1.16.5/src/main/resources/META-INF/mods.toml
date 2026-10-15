@@ -1,0 +1,43 @@
+modLoader="javafml"
+loaderVersion="[36,)"
+license="MIT"
+issueTrackerURL="https://github.com/spege/tombtweaks"
+
+[[mods]]
+modId="tombtweaks"
+version="${file.jarVersion}"
+displayName="TombTweaks"
+authors="spege"
+description='''
+Tweaks for Corail Tombstone: items return to the slots they came from, unvisited graves slowly decay, and the magic books get a cooldown.
+'''
+
+[[dependencies.tombtweaks]]
+    modId="forge"
+    mandatory=true
+    # 36.2 is the line that bundles Mixin, which the MixinConfigs manifest attribute needs.
+    versionRange="[36.2,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.tombtweaks]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.16.5,1.17)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.tombtweaks]]
+    modId="tombstone"
+    mandatory=true
+    # Pinned to the verified version: 7.0.0 only. The mixins are required + defaultRequire 1,
+    # so a version that changes tick / canEnchant / the setEnchant call will crash the game when
+    # the class loads - better for Forge to refuse to start with a readable message about the
+    # dependency.
+    versionRange="[7.0.0,7.1)"
+    ordering="AFTER"
+    side="BOTH"
+
+# The mixin configuration is NOT declared here: FML 36 does not read [[mixins]] (that is a
+# NeoForge feature). It is registered by the MixinConfigs attribute in the jar manifest, added
+# by MixinGradle from the mixin { config ... } block in build.gradle.

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.spege.tombtweaks.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "tombtweaks.refmap.json",
+  "mixins": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,105 @@
+plugins {
+    id 'eclipse'
+    // 5.1.77 = newest 5.1.x on maven.minecraftforge.net (2026-10-16). ForgeGradle 5 runs on
+    // Gradle 7 only - hence the 7.6.6 wrapper, not the 8.x one the other builds use.
+    id 'net.minecraftforge.gradle' version '[5.1,5.2)'
+    id 'org.spongepowered.mixin'   version '0.7.+'
+}
+
+version = '0.3.0'
+group   = 'com.spege.tombtweaks'
+base { archivesName = 'tombtweaks-1.16.5' }
+
+// Do NOT add -proc:none. The Mixin annotation processor must run: 1.16.5 runs on SRG names,
+// so every mixin that targets a Minecraft method needs a refmap.
+//
+// The WHOLE build is Java 8 - core and the platform/feature/mixin code alike - so the
+// toolchain itself is the Java 8 check, and no separate compileCoreJava8 task is needed.
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(8) }
+}
+
+// The shared core (Java 8, zero MC types) lives in ../core and is compiled in every MC
+// version's build - the decision logic exists once, and its tests run on every JVM.
+sourceSets {
+    main { java { srcDir '../core/src/main/java' } }
+    test { java { srcDir '../core/src/test/java' } }
+}
+
+minecraft {
+    // Class names on 1.16.5 are the Forge/MCP ones even with the official channel (Mojang class
+    // names only arrived in 1.17); method and field names are Mojang's.
+    mappings channel: 'official', version: '1.16.5'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+            mods { tombtweaks { source sourceSets.main } }
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+            mods { tombtweaks { source sourceSets.main } }
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, 'tombtweaks.refmap.json'
+    config 'mixins.tombtweaks.json'
+}
+
+repositories {
+    mavenCentral()
+    // Tombstone is "All rights reserved", so its jar must NOT end up in the repo.
+    // CurseMaven serves exactly the same file as CurseForge.
+    maven { url = 'https://www.cursemaven.com' }
+}
+
+dependencies {
+    // 36.2.42 = newest 1.16.5-36.2.x on maven.minecraftforge.net (2026-10-16). It bundles
+    // Mixin 0.8.4 as a library, so the MixinConfigs manifest attribute is honoured at runtime.
+    minecraft 'net.minecraftforge:forge:1.16.5-36.2.42'
+
+    // Tombstone: deobf is required, because the MC references in its bytecode are SRG names.
+    // Coordinate: curse.maven:<slug>-<projectId>:<fileId>. 243707 = corail-tombstone,
+    // 8638772 = the file "Corail Tombstone 7.0.0 for 1.16.5".
+    // Before changing the file: compare javap -p of the mixin target classes between versions
+    // and count the calls in the methods with redirects.
+    implementation fg.deobf('curse.maven:corail-tombstone-243707:8638772')
+
+    // Mixin annotation processor - MixinGradle 0.7 does NOT add it by itself. Without this line the
+    // build is silent and green, but the jar comes out without a refmap, and every mixin that
+    // targets a Minecraft method crashes the game in a real instance. runClient will NOT show this,
+    // because in dev the names are official. Proof that it works: tombtweaks.refmap.json in
+    // build/libs/*.jar. The version matches the Mixin that Forge 36.2.42 bundles at runtime.
+    annotationProcessor 'org.spongepowered:mixin:0.8.4:processor'
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging { events 'passed', 'skipped', 'failed' }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // Do NOT add -proc:none here - see the note at the top of this file.
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes([
+            'Specification-Title'   : 'TombTweaks',
+            'Specification-Vendor'  : 'spege',
+            'Specification-Version' : "${version}",
+            'Implementation-Title'  : project.name,
+            'Implementation-Version': "${version}",
+            'Implementation-Vendor' : 'spege'
+        ])
+    }
+}
