@@ -3,7 +3,9 @@
   "minVersion": "0.8.5",
   "package": "com.spege.tombtweaks.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "MixinBlockEntityPlayerGrave"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
