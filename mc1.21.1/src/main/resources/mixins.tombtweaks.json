@@ -4,7 +4,9 @@
   "package": "com.spege.tombtweaks.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "MixinBlockEntityPlayerGrave"
+    "MixinBlockEntityPlayerGrave",
+    "MixinItemBook",
+    "MixinBlockDecorativeGrave"
   ],
   "injectors": {
     "defaultRequire": 1
