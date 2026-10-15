@@ -32,6 +32,11 @@ neoForge {
     mods {
         tombtweaks { sourceSet sourceSets.main }
     }
+
+    // Puts Minecraft/NeoForge on the TEST classpath only. This is NOT MDG's unitTest feature:
+    // the tests still run on a plain JUnit JVM with no game bootstrap (SnapshotCodecTest only
+    // needs the NBT classes, as on 1.20.1).
+    addModdingDependenciesTo sourceSets.test
 }
 
 repositories {
