@@ -7,7 +7,7 @@ Tweaks and fixes for [Corail Tombstone](https://www.curseforge.com/minecraft/mc-
 | `[restore]` | A recovered grave returns items to the **same slots** they died in — including armour and offhand | enabled |
 | `[decay]` | An unvisited grave slowly drops its contents on the ground; four protection lists exempt chosen items from that | **disabled** |
 | `[cooldown]` | Tombstone's magic books get a cooldown, configurable per book | enabled (2 books × 6 min) |
-| `[graveKeys]` | `survivesDeath = false`: grave keys stop being soulbound — carried keys end up in the new grave, and Soulbound cannot be applied to a key | `true` (Tombstone's behaviour) |
+| `[graveKeys]` | `survivesDeath = false`: grave keys stop being soulbound — carried keys end up in the new grave, and Soulbound cannot be applied to a key (on 1.21.1 the anvil refuses that by itself) | `true` (Tombstone's behaviour) |
 | *(always)* | Tombstone enchantments **disabled in its config** really disappear from chests and from librarians | — |
 
 Config: `config/tombtweaks-common.toml`. All values are read live — no restart needed.
@@ -17,7 +17,7 @@ Config: `config/tombtweaks-common.toml`. All values are read live — no restart
 | Minecraft | Loader | Tombstone | Status |
 |---|---|---|---|
 | 1.20.1 | Forge 47+ | 9.1.4 – 9.1.x | ✅ all features (0.2.0) |
-| 1.21.1 | NeoForge 21.1 | 9.5.x | in preparation — disabling enchantments **does not apply** (see below) |
+| 1.21.1 | NeoForge 21.1 | 9.5.6 – 9.5.x | ✅ restore, decay, book cooldowns, grave keys (0.3.0, awaiting the in-game pass) — disabling enchantments **does not apply** (see below) |
 | 1.16.5 | Forge 36 | 7.0.0 | in preparation |
 
 The Tombstone version range is deliberately narrow: the mixins are verified against specific releases, and an incompatible version should refuse to start rather than crash the game on a class load.
@@ -32,7 +32,7 @@ The Tombstone version range is deliberately narrow: the mixins are verified agai
 
 **Cooldown.** The block sits on `ItemBook.canEnchant`; the cooldown starts on the only `setEnchant` call in Tombstone, and only on success.
 
-**Keys and Soulbound.** Tombstone treats every grave key as Soulbound unconditionally (the `forceSoulbound` flag), regardless of the enchantment and of the Soulbound switch in its config. With `survivesDeath = false` the death-time decision (`DeathHandler.storeSoulboundsOnBody`) answers "no" for a key, so it lands in the new grave. The key to the grave that is just being created is issued by Tombstone separately — you get it as always.
+**Keys and Soulbound.** Tombstone treats every grave key as Soulbound unconditionally (on 1.16.5 `EntityHelper.hasSoulbound` special-cases the key, on 1.20.1 the key carries a `forceSoulbound` flag, on 1.21.1 it carries a default `tb_soulbound` data component), regardless of the enchantment and of the Soulbound switch in its config. With `survivesDeath = false` the death-time decision (`DeathHandler.storeSoulboundsOnBody`) answers "no" for a key, so it lands in the new grave. The key to the grave that is just being created is issued by Tombstone separately — you get it as always.
 
 **Disabled enchantments.** Tombstone ties the enchanting table, the anvil and the books to its config, but not `isDiscoverable()` (which vanilla `enchant_randomly` in chests filters on) nor `isTradeable()` (librarians). The mod adds both overrides: `isEnabled() && super`. For enabled enchantments nothing changes.
 
