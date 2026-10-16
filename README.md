@@ -18,7 +18,7 @@ Config: `config/tombtweaks-common.toml`. All values are read live — no restart
 |---|---|---|---|
 | 1.20.1 | Forge 47+ | 9.1.4 – 9.1.x | ✅ all features (0.2.0) |
 | 1.21.1 | NeoForge 21.1 | 9.5.6 – 9.5.x | ✅ restore, decay, book cooldowns, grave keys (0.3.0, awaiting the in-game pass) — disabling enchantments **does not apply** (see below) |
-| 1.16.5 | Forge 36 | 7.0.0 | in preparation |
+| 1.16.5 | Forge 36 | 7.0.0 | ✅ all features (0.3.0, awaiting the in-game pass) |
 
 The Tombstone version range is deliberately narrow: the mixins are verified against specific releases, and an incompatible version should refuse to start rather than crash the game on a class load.
 
@@ -55,9 +55,11 @@ The repo contains three independent builds — build each from its own directory
 cd mc1.20.1 && ./gradlew check build   # tests + guards, jar in mc1.20.1/build/libs/
 ```
 
+The same command works in `mc1.16.5/` and `mc1.21.1/`.
+
 Gradle fetches the JDK (8 / 17 / 21) itself via the toolchain. Tombstone comes from CurseMaven — its jar deliberately does not live in the repo (licence "All rights reserved").
 
-**After every mixin change in a Forge build**, check that `tombtweaks.refmap.json` in the built jar has entries for the targets that are Minecraft methods (1.20.1: `use` → `m_6227_`, `canEnchant` → `m_6081_`). Without the refmap the build is green and the game crashes only in a real instance — `runClient` will not show it.
+**After every mixin change in a Forge build**, check that `tombtweaks.refmap.json` in the built jar has entries for the targets that are Minecraft methods (1.20.1: `use` → `m_6227_`, `canEnchant` → `m_6081_`; 1.16.5: `use` → `func_225533_a_`, `canEnchant` → `func_92089_a`, `tick` → `func_73660_a`). NeoForge 1.21.1 runs on official names and has no refmap. Without the refmap the build is green and the game crashes only in a real instance — `runClient` will not show it.
 
 ## Architecture
 
