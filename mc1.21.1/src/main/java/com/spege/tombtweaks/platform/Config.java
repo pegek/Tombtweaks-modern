@@ -65,6 +65,8 @@ public final class Config {
                 .comment("Ticks the grave must have been LOADED before decay starts.",
                          "This is Tombstone's own countTicks, so it does not advance while the",
                          "chunk is unloaded. A later death merged into the same grave resets it.",
+                         "Tombstone only saves it with the chunk, so a restart can roll progress back",
+                         "to the last chunk save - decay may start later, never earlier.",
                          "Vanilla item despawn = 6000 (5 min). 24000 = 1 MC day.")
                 .defineInRange("startTicks", 6000, 0, Integer.MAX_VALUE);
         decayIntervalTicks = builder

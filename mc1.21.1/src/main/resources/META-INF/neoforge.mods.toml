@@ -10,7 +10,7 @@ version="${file.jarVersion}"
 displayName="TombTweaks"
 authors="spege"
 description='''
-Tweaks for Corail Tombstone: items return to the slots they came from, unvisited graves slowly decay, and the magic books get a cooldown.
+Tweaks for Corail Tombstone: items return to the slots they came from, unvisited graves slowly decay, the magic books get a cooldown, and grave keys can be made immune to Soulbound.
 '''
 
 [[dependencies.tombtweaks]]
