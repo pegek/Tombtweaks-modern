@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Unit tests only. SnapshotCodecTest loads the NBT classes, which brings up log4j, and log4j would
+  otherwise pick Forge's log4j2.xml from the classpath and write logs/latest.log + logs/debug.log
+  into the source tree. Log4j prefers log4j2-test.xml over log4j2.xml, so this console-only config
+  wins in the test JVM and never reaches the mod jar (src/test/resources is not packaged).
+-->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>
