@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "tombtweaks.refmap.json",
   "mixins": [
+    "MixinTileEntityWritableGrave"
   ],
   "injectors": {
     "defaultRequire": 1
