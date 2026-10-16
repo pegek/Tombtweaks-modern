@@ -96,8 +96,9 @@ public final class Config {
         cooldownBooks = builder
                 .comment("One entry per book, as \"registry_name;minutes\".",
                          "Minutes are clamped to 720 (12 h). 0 or a malformed entry means no cooldown.",
-                         "Works for any of Tombstone's seven tombstone:book_of_* items, not just the",
-                         "two below. Other soul-consuming items (scrolls, tablets) are ignored.")
+                         "Works for any of Tombstone 7.0.0's four tombstone:book_of_* items",
+                         "(disenchantment, magic_impregnation, recycling, repairing), not just the two",
+                         "below. Other soul-consuming items (scrolls, tablets) are ignored.")
                 .defineList("books", Arrays.asList(
                         "tombstone:book_of_disenchantment;6",
                         "tombstone:book_of_magic_impregnation;6"), o -> o instanceof String);
