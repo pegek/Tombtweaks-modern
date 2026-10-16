@@ -10,6 +10,6 @@ run/
 .settings/
 hs_err_pid*.log
 
-# Jary cudzych modow nigdy nie ida do repo (Tombstone = "All rights reserved").
-# Zaleznosci ida z CurseMaven - patrz build.gradle.
+# Other mods' jars never go into the repo (Tombstone = "All rights reserved").
+# Dependencies come from CurseMaven - see build.gradle.
 libs/*.jar

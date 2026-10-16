@@ -16,10 +16,11 @@ import java.util.List;
  * <p>The default protection lists are EMPTY. The ones from 1.12.2 belong to a specific pack,
  * and a public mod has no right to assume them.
  *
- * <p>Lists use the {@code defineList} overload with a new-element supplier: the overload without
- * it is deprecated in NeoForge 21.1. The supplier is only used by a config UI's "add" button;
- * on file load an empty list is accepted exactly as on Forge 47 (the size range is applied only
- * when a list fails element validation and has to be corrected).
+ * <p>Lists use {@code defineListAllowEmpty} with a new-element supplier (the overload without the
+ * supplier is deprecated in NeoForge 21.1; the supplier only feeds a config UI's "add" button).
+ * {@code defineList} would declare the lists non-empty: a config UI would enforce that, and a
+ * list holding only invalid entries would be corrected back to its default - for {@code books}
+ * that would silently restore both cooldowns.
  */
 public final class Config {
 
@@ -75,17 +76,17 @@ public final class Config {
         decayProtectedItems = builder
                 .comment("Full registry names that decay must not eat, e.g. \"mymod:relic_blade\".",
                          "An empty list protects NOTHING.")
-                .defineList("protectedItems", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
+                .defineListAllowEmpty("protectedItems", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
         decayProtectedItemPrefixes = builder
                 .comment("Registry-name prefixes, e.g. \"mymod:relic_\".")
-                .defineList("protectedItemPrefixes", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
+                .defineListAllowEmpty("protectedItemPrefixes", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
         decayProtectedEnchantments = builder
                 .comment("Registry names of enchantments that protect whatever carries them.")
-                .defineList("protectedEnchantments", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
+                .defineListAllowEmpty("protectedEnchantments", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
         decayProtectedNbtStrings = builder
                 .comment("Top-level string keys of the item's custom_data component, as \"key=value\".",
                          "A malformed entry is ignored.")
-                .defineList("protectedNbtStrings", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
+                .defineListAllowEmpty("protectedNbtStrings", Collections.<String>emptyList(), () -> "", o -> o instanceof String);
         decayProtectedNeverDecay = builder
                 .comment("true  = protection is an exemption; a grave holding only protected items stops decaying.",
                          "false = protection is only an ordering; protected items are eaten last.")
@@ -104,7 +105,7 @@ public final class Config {
                          "Minutes are clamped to 720 (12 h). 0 or a malformed entry means no cooldown.",
                          "Works for any of Tombstone's seven tombstone:book_of_* items, not just the",
                          "two below. Other soul-consuming items (scrolls, tablets) are ignored.")
-                .defineList("books", Arrays.asList(
+                .defineListAllowEmpty("books", Arrays.asList(
                         "tombstone:book_of_disenchantment;6",
                         "tombstone:book_of_magic_impregnation;6"), () -> "", o -> o instanceof String);
         builder.pop();
@@ -113,15 +114,15 @@ public final class Config {
                .push("graveKeys");
         graveKeysSurviveDeath = builder
                 .comment("Whether the grave keys you are carrying stay with you when you die.",
-                         "Tombstone treats every grave key as soulbound no matter what - with or without",
-                         "the Soulbound enchantment, and even when Soulbound is disabled in Tombstone's",
-                         "own config.",
+                         "Tombstone treats every grave key as soulbound no matter what: each key carries",
+                         "Tombstone's tb_soulbound data component, set to true by default, with or without",
+                         "the Soulbound enchantment.",
                          "true  = Tombstone's behaviour: carried keys survive every death.",
                          "false = keys are immune to Soulbound: carried keys go into the new grave like any",
                          "        other item (even with the enchantment on them). The key to the grave you",
                          "        just made is still handed to you as usual.",
-                         "On 1.21.1 an anvil cannot put Soulbound on a key anyway: the enchantment's",
-                         "supported_items is #minecraft:enchantable/durability, and a key is not in it.",
+                         "On 1.21.1 an anvil cannot put Soulbound on a key anyway: Tombstone's own",
+                         "supportsEnchantment hook refuses Soulbound on any stack already marked tb_soulbound.",
                          "Read live - no restart needed.")
                 .define("survivesDeath", true);
         builder.pop();

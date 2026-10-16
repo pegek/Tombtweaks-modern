@@ -8,7 +8,7 @@ Mark the result next to each item. Anything that comes out different from "Expec
 
 - [ ] The game starts, `tombtweaks` appears in the mod list with version `0.2.0`.
 - [ ] The log has the line `[TombTweaks] 0.2.0 loading`.
-- [ ] The log has **five** lines `Mixing … from mixins.tombtweaks.json into …` — for `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave`, `DeathHandler` and `TombstoneEnchantment`. Mixins load lazily: the line only appears when the target class is first loaded (e.g. after placing a grave / using a book), so its absence before that moment is not an error.
+- [ ] `logs/debug.log` (not `latest.log` - Mixin logs these lines at DEBUG) has **five** lines `Mixing … from mixins.tombtweaks.json into …` — for `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave`, `DeathHandler` and `TombstoneEnchantment`. Mixins load lazily: the line only appears when the target class is first loaded (e.g. after placing a grave / using a book), so its absence before that moment is not an error.
 - [ ] The log has **none** of: `InvalidInjectionException`, `could not find any targets`, `Reference map 'tombtweaks.refmap.json' … could not be read`.
 - [ ] `config/tombtweaks-common.toml` was created with three tables `[restore]`, `[decay]`, `[cooldown]`; `decay.enabled = false`, the four protection lists empty, `cooldown.books` with two entries of 6 min each.
 
@@ -48,7 +48,7 @@ Set `decay.enabled = true`, `startTicks = 100`, `intervalTicks = 40`.
 - [ ] `survivesDeath = false`, repeat. **Expected:** the old key lies in the **new** grave, and you get the key to the new grave as always.
 - [ ] The same with a key that previously had Soulbound applied (e.g. under `true`). **Expected:** under `false` it goes into the grave too.
 - [ ] Anvil: a key + a book with Soulbound under `false` — no result. Under `true` — works as in Tombstone.
-- [ ] The log has the line `Mixing MixinDeathHandlerKeys … into ovh.corail.tombstone.helper.DeathHandler` and `Mixing MixinTombstoneEnchantment … into ovh.corail.tombstone.enchantment.TombstoneEnchantment`.
+- [ ] `logs/debug.log` has the line `Mixing MixinDeathHandlerKeys … into ovh.corail.tombstone.helper.DeathHandler` and `Mixing MixinTombstoneEnchantment … into ovh.corail.tombstone.enchantment.TombstoneEnchantment`.
 
 ## 3b. Tombstone's disabled enchantments (0.2.0)
 

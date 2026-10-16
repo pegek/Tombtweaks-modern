@@ -11,14 +11,14 @@ import ovh.corail.tombstone.registry.ModItems;
  * constructor gives the item a default {@code ModDataComponents.SOULBOUND} data component
  * ({@code tb_soulbound}) set to true,
  * and {@code Helper.isSoulbound(ItemStack, Level)} answers true for that component before it
- * even looks at the Soulbound enchantment. Disabling Soulbound in Tombstone's config therefore
- * leaves carried keys surviving every death.
+ * even looks at the Soulbound enchantment. Tombstone 9.5.6 has no config switch that changes this.
  *
  * <p>There is only the death-time decision here. On 1.20.1 this class also had
  * {@code refusesEnchantment}, used by a mixin that made the anvil refuse Soulbound on a key.
- * On 1.21.1 that is not needed: enchantments are data-driven JSON, Soulbound's
- * {@code supported_items} is {@code #minecraft:enchantable/durability}, and Tombstone does not
- * add the key to that tag - an anvil cannot put Soulbound on a key in the first place.
+ * On 1.21.1 that is not needed: Tombstone's own {@code ItemStackExtensionMixin} hooks
+ * {@code IItemStackExtension.supportsEnchantment} and, for Soulbound on any single-stack item,
+ * answers {@code !tb_soulbound}. A key carries {@code tb_soulbound=true}, so
+ * {@code AnvilMenu.createResult} refuses it before the {@code supported_items} tag is consulted.
  *
  * <p>The mixin delegates the whole decision here; the config is read live.
  */

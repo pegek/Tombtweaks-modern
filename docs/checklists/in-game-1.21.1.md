@@ -9,7 +9,7 @@ The "disabled enchantments in loot and trades" section of the 1.20.1 list does *
 ## 0. Startup
 
 - [ ] The game starts; the mod list shows `tombtweaks` version `0.3.0`; the log has `[TombTweaks] 0.3.0 loading`.
-- [ ] The log has **four** `Mixing … from mixins.tombtweaks.json into …` lines — for `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave` and `DeathHandler`. Mixins apply lazily: a line only appears once its target class first loads (e.g. after a grave is placed or a book is used), so its absence before that is not an error. There is no line for `TombstoneEnchantment` — that mixin is not ported to 1.21.1.
+- [ ] `logs/debug.log` (not `latest.log` - Mixin logs these lines at DEBUG) has **four** `Mixing … from mixins.tombtweaks.json into …` lines — for `BlockEntityPlayerGrave`, `ItemBook`, `BlockDecorativeGrave` and `DeathHandler`. Mixins apply lazily: a line only appears once its target class first loads (e.g. after a grave is placed or a book is used), so its absence before that is not an error. There is no line for `TombstoneEnchantment` — that mixin is not ported to 1.21.1.
 - [ ] The log has **none** of `InvalidInjectionException`, `could not find any targets`, `Scanned 0 target(s)`, or any refmap message.
 - [ ] `config/tombtweaks-common.toml` has four tables: `[restore]`, `[decay]`, `[cooldown]`, `[graveKeys]`.
 
@@ -41,7 +41,7 @@ Set `decay.enabled = true`, `startTicks = 100`, `intervalTicks = 40`.
 ## 3. Book cooldowns
 
 - [ ] A Book of Disenchantment on a decorative grave with a soul — works.
-- [ ] A second book of the same type straight away — refused; the action bar shows "This book is still recovering — N s left." (Note whether the message appears more than once per click.)
+- [ ] A second book of the same type straight away — refused; the action bar shows "This book is still recovering — N s left." Tombstone also prints its own "not allowed" line in chat - that is expected. (Note whether the action-bar message appears more than once per click.)
 - [ ] **A stack of exactly one book** still starts the cooldown.
 - [ ] The cooldown survives quit-to-menu and death/respawn.
 - [ ] `books = ["tombstone:book_of_disenchantment;0"]` removes the cooldown immediately, without a restart.
@@ -52,7 +52,7 @@ Set `decay.enabled = true`, `startTicks = 100`, `intervalTicks = 40`.
 - [ ] Default (`graveKeys.survivesDeath = true`): die carrying a key to an old grave. **Expected:** you still have it after respawning (Tombstone's behaviour).
 - [ ] `survivesDeath = false`, repeat. **Expected:** the old key lies in the **new** grave; you still get the key to the new grave as usual.
 - [ ] Switching `survivesDeath` live, without a restart, changes the behaviour on the next death.
-- [ ] (Optional) Anvil: key + Soulbound book gives no result whatever the setting — that is vanilla's `supported_items` check, not this mod.
+- [ ] (Optional) Anvil: key + Soulbound book gives no result whatever the setting — that is Tombstone's own `supportsEnchantment` hook (a key carries `tb_soulbound`), not this mod.
 
 ## 5. Dedicated server
 

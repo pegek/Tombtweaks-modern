@@ -56,6 +56,7 @@ public final class BookCooldownService {
     public static void tellRemaining(Player player, long remainingMillis) {
         long seconds = (remainingMillis + 999L) / 1000L;
         player.displayClientMessage(
-                Component.translatable("message.tombtweaks.book_cooldown", seconds), true);
+                Component.translatableWithFallback("message.tombtweaks.book_cooldown",
+                        "This book is still recovering - %s s left.", seconds), true);
     }
 }
